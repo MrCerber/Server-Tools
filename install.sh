@@ -31,7 +31,7 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 CUSTOM_MOTD_99_SRC="${SCRIPT_DIR}/99-mrcerber"
 CUSTOM_MOTD_LOGO_SRC="${SCRIPT_DIR}/logo.txt"
-MOTD_BASE_URL="${MOTD_BASE_URL:-https://raw.githubusercontent.com/MrCerber/Network/refs/heads/main/v2}"
+MOTD_BASE_URL="${MOTD_BASE_URL:-https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/heads/main}"
 
 MOTD_DIR="/etc/update-motd.d"
 BACKUP_DIR="/root/.mrcerber-bootstrap-backups"
@@ -50,7 +50,6 @@ C_OK=$'\e[38;5;82m'
 C_WARN=$'\e[38;5;220m'
 C_ERR=$'\e[38;5;196m'
 C_DIM=$'\e[38;5;240m'
-C_DESC=$'\e[38;5;252m'
 C_SEC=$'\e[38;5;81m'
 
 # ---------------------------
@@ -471,6 +470,25 @@ install_aliases() {
 }
 
 # ---------------------------
+# Panels
+# ---------------------------
+install_1panel() {
+  say "Installing 1Panel..."
+  require_internet_or_warn
+  log_action "install_1panel START"
+  bash -c "$(curl -sSL https://resource.1panel.pro/v2/quick_start.sh)"
+  log_action "install_1panel END"
+}
+
+install_3xui() {
+  say "Installing 3x-ui..."
+  require_internet_or_warn
+  log_action "install_3xui START"
+  bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
+  log_action "install_3xui END"
+}
+
+# ---------------------------
 # UFW menu
 # ---------------------------
 ufw_status() {
@@ -717,9 +735,14 @@ main_menu() {
     _menu_item " 9" "Fail2ban submenu"        "SSH brute-force protection"
     echo
 
+    _menu_section "Panels"
+    _menu_item "10" "Install 1Panel"          "web-based server management panel"
+    _menu_item "11" "Install 3x-ui"           "Xray-based proxy management panel"
+    echo
+
     _menu_section "Extras"
-    _menu_item "10" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
-    _menu_item "11" "Show action log"         "last 20 entries from bootstrap log"
+    _menu_item "12" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
+    _menu_item "13" "Show action log"         "last 20 entries from bootstrap log"
     echo
 
     _sep
@@ -737,8 +760,10 @@ main_menu() {
        7) preview_motd; pause ;;
        8) ufw_menu ;;
        9) fail2ban_menu ;;
-      10) install_aliases; pause ;;
-      11) show_log; pause ;;
+      10) install_1panel; pause ;;
+      11) install_3xui; pause ;;
+      12) install_aliases; pause ;;
+      13) show_log; pause ;;
        0) exit 0 ;;
        *) warn "Invalid choice."; pause ;;
     esac

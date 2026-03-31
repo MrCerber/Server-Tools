@@ -1,27 +1,13 @@
 <div align="center">
 
-```
-              ___          _
-  /\/\  _ __ / __\___ _ __| |__   ___ _ __
- /    \| '__/ /  / _ \ '__| '_ \ / _ \ '__|
-/ /\/\ \ | / /__|  __/ |  | |_) |  __/ |
-\/    \/_| \____/\___|_|  |_.__/ \___|_|
-
-     __     _                      _
-  /\ \ \___| |___      _____  _ __| | __
- /  \/ / _ \ __\ \ /\ / / _ \| '__| |/ /
-/ /\  /  __/ |_ \ V  V / (_) | |  |   <
-\_\ \/ \___|\__| \_/\_/ \___/|_|  |_|\_\
-```
-
-# Server Tools
+# 🖥️ Server Tools
 
 **Интерактивный bootstrap-скрипт для свежего сервера Ubuntu / Debian**
 
-![Shell](https://img.shields.io/badge/Shell-Bash-4EAA25?style=flat-square&logo=gnubash&logoColor=white)
-![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Debian-E95420?style=flat-square&logo=ubuntu&logoColor=white)
-![License](https://img.shields.io/badge/License-Personal-blue?style=flat-square)
-![Root](https://img.shields.io/badge/Requires-root-red?style=flat-square)
+[![Shell](https://img.shields.io/badge/Shell-Bash-4EAA25?style=flat-square&logo=gnubash&logoColor=white)](https://www.gnu.org/software/bash/)
+[![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Debian-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com/)
+[![License](https://img.shields.io/badge/License-Personal-blue?style=flat-square)](#)
+[![Root](https://img.shields.io/badge/Requires-root-critical?style=flat-square)](#)
 
 </div>
 
@@ -31,27 +17,26 @@
 
 Один скрипт — полная начальная настройка сервера. Устанавливает базовые пакеты, настраивает файрвол, Fail2ban, кастомный MOTD и shell-алиасы. Всё через интерактивное меню с цветным выводом и логированием.
 
-**Что делает скрипт:**
-
-- 📦 Обновляет пакеты и устанавливает базовый набор утилит
-- 🔄 Настраивает автоматические security-обновления
-- 🛡️ Управляет UFW и Fail2ban через удобные подменю
-- 🖥️ Устанавливает кастомный MOTD с системной информацией
-- ⚡ Добавляет полезные алиасы в `.bashrc`
-- 📝 Логирует все действия и создаёт резервные копии
+| | |
+|---|---|
+| 📦 | Обновляет пакеты и устанавливает базовый набор утилит |
+| 🔄 | Настраивает автоматические security-обновления |
+| 🛡️ | Управляет UFW и Fail2ban через интерактивные подменю |
+| 🖥️ | Устанавливает кастомный MOTD с системной информацией |
+| 🗂️ | Устанавливает 1Panel или 3x-ui через встроенные установщики |
+| ⚡ | Добавляет полезные алиасы в `.bashrc` |
+| 📝 | Логирует все действия и создаёт резервные копии |
 
 ---
 
 ## Быстрый старт
 
 ```bash
-git clone https://github.com/MrCerber/Server-Tools.git
-cd Server-Tools
-bash install.sh
+bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/heads/main/install.sh)
 ```
 
 > [!IMPORTANT]
-> Скрипт должен запускаться **от root**. SSH-ключи должны быть установлены заранее.
+> Скрипт запускается **от root**. SSH-ключи должны быть установлены заранее.
 
 ---
 
@@ -67,12 +52,16 @@ bash install.sh
 
 ## Меню
 
-При запуске открывается интерактивное цветное меню со статусом сервисов в реальном времени:
+При запуске открывается интерактивное цветное меню со статусом сервисов в реальном времени.
+
+<details>
+<summary><b>📋 Показать структуру меню</b></summary>
+<br>
 
 ```
   MrCerber — New Server Bootstrap
-  --------------------------------------------------
   UFW: active        Fail2ban: active
+  ────────────────────────────────────────────────────
 
   System
     1)  Full base setup          update + packages + auto-updates
@@ -89,12 +78,18 @@ bash install.sh
     8)  UFW submenu              firewall rules & management
     9)  Fail2ban submenu         SSH brute-force protection
 
+  Panels
+   10)  Install 1Panel           web-based server management panel
+   11)  Install 3x-ui            Xray-based proxy management panel
+
   Extras
-   10)  Install aliases          bench, geoip  ->  /root/.bashrc
-   11)  Show action log          last 20 entries from bootstrap log
+   12)  Install aliases          bench, geoip  ->  /root/.bashrc
+   13)  Show action log          last 20 entries from bootstrap log
 
     0)  Exit
 ```
+
+</details>
 
 ---
 
@@ -129,11 +124,6 @@ unattended-upgrades          apt-listchanges          openssh-server
 При SSH-входе вместо стандартного MOTD отображается:
 
 ```
-              ___          _
-  /\/\  _ __ / __\___ _ __| |__   ___ _ __
- /    \| '__/ /  / _ \ '__| '_ \ / _ \ '__|
-...
-
   System
   ────────────────────────────────────────────────────
     Host          server01
@@ -211,6 +201,29 @@ mode    = normal
 </details>
 
 <details>
+<summary><b>🗂️ Panels — 1Panel и 3x-ui</b></summary>
+<br>
+
+**1Panel** — современная веб-панель управления сервером с поддержкой Docker, сайтов, баз данных и мониторинга.
+
+```bash
+bash -c "$(curl -sSL https://resource.1panel.pro/v2/quick_start.sh)"
+```
+
+**3x-ui** — веб-панель управления Xray-core для настройки прокси-протоколов (VLESS, VMess, Trojan и др.).
+
+```bash
+bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
+```
+
+Оба установщика:
+- Запускаются с проверкой интернет-соединения
+- Логируют начало и конец установки
+- Полностью интерактивны — следуй инструкциям установщика
+
+</details>
+
+<details>
 <summary><b>⚡ Алиасы</b></summary>
 <br>
 
@@ -225,6 +238,7 @@ alias geoip='bash <(wget -qO- https://github.com/vernette/ipregion/raw/master/ip
 ```
 
 После установки применить в текущей сессии:
+
 ```bash
 source ~/.bashrc
 ```
@@ -240,11 +254,14 @@ source ~/.bashrc
 | **Резервные копии** | Каждый изменяемый файл бэкапится в `/root/.mrcerber-bootstrap-backups/` с timestamp |
 | **Логирование** | Все действия пишутся в `/root/.mrcerber-bootstrap.log` |
 | **Подтверждение** | Деструктивные операции требуют явного `[y/N]` |
-| **Проверка OS** | Предупреждение при запуске не на Ubuntu/Debian |
+| **Проверка OS** | Предупреждение при запуске не на Ubuntu / Debian |
 | **Проверка сети** | Ping-тест перед загрузкой файлов |
 | **Идемпотентность** | Большинство операций безопасно запускать повторно |
 
-**Пример лога:**
+<details>
+<summary><b>📄 Пример лога</b></summary>
+<br>
+
 ```
 [2025-01-06 12:00:01] OS check passed: Ubuntu 22.04.3 LTS
 [2025-01-06 12:00:05] full_base_setup START
@@ -259,6 +276,8 @@ source ~/.bashrc
 [2025-01-06 12:05:35] ufw enable
 ```
 
+</details>
+
 ---
 
 ## Структура проекта
@@ -268,7 +287,6 @@ Server-Tools/
 ├── install.sh        # Главный скрипт с интерактивным меню
 ├── 99-mrcerber       # Скрипт кастомного MOTD
 ├── logo.txt          # ASCII-арт логотип для MOTD
-├── CLAUDE.md         # Контекст проекта для Claude Code
 └── README.md         # Документация
 ```
 
