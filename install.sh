@@ -315,7 +315,7 @@ ssh_change_port() {
     warn "Invalid port."; return 0
   fi
   say "${C_WARN}Make sure UFW allows port ${port} before reconnecting!${R}"
-  confirm "Change SSH port to ${port}? [y/N]: " || return 0
+  confirm "Change SSH port to ${port}?" || return 0
   backup_file "${SSHD_CONFIG}"
   if grep -qiE '^\s*Port\s+' "${SSHD_CONFIG}"; then
     sed -i -E "s/^\s*Port\s+.*/Port ${port}/" "${SSHD_CONFIG}"
@@ -557,7 +557,7 @@ ufw_delete_rule() {
   say "Current rules:"
   ufw status numbered || true
   read -r -p "Enter rule number to delete: " num
-  [[ "$num" =~ ^[0-9]+$ ]] || die "Invalid number."
+  [[ "$num" =~ ^[0-9]+$ ]] || { warn "Invalid number."; return 0; }
   ufw delete "$num"
   log_action "ufw delete rule ${num}"
 }
@@ -576,7 +576,7 @@ ufw_disable() {
 }
 
 ufw_reset() {
-  confirm "This will reset UFW (remove all rules). Continue? [y/N]: " || return 0
+  confirm "This will reset UFW (remove all rules). Continue?" || return 0
   log_action "ufw reset"
   ufw --force reset
 }
@@ -595,7 +595,6 @@ ufw_menu() {
     _menu_item "8" "Disable UFW"       "deactivate firewall"
     _menu_item "9" "Reset UFW"         "!! removes all rules !!"
     _menu_item "0" "Back"              ""
-    _menu_footer
     read -r -p "  Select: " c
     case "$c" in
       1) ufw_status; pause ;;
@@ -665,7 +664,7 @@ fail2ban_status() {
 
 fail2ban_unban_ip() {
   read -r -p "Enter IP to unban: " ip
-  [[ -n "$ip" ]] || die "IP cannot be empty."
+  [[ -n "$ip" ]] || { warn "IP cannot be empty."; return 0; }
   log_action "fail2ban unban ${ip}"
   fail2ban-client set sshd unbanip "$ip" || true
 }
@@ -679,7 +678,6 @@ fail2ban_menu() {
     _menu_item "3" "Status"              "service status + sshd jail"
     _menu_item "4" "Unban IP"            "unban from sshd jail"
     _menu_item "0" "Back"                ""
-    _menu_footer
     read -r -p "  Select: " c
     case "$c" in
       1) fail2ban_install_enable; pause ;;
