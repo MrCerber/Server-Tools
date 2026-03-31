@@ -37,7 +37,7 @@ MOTD_DIR="/etc/update-motd.d"
 BACKUP_DIR="/root/.mrcerber-bootstrap-backups"
 SSHD_CONFIG="/etc/ssh/sshd_config"
 LOG_FILE="/root/.mrcerber-bootstrap.log"
-ALIASES_BASHRC="/root/.bashrc"
+ALIASES_FILE="/etc/profile.d/mrcerber-aliases.sh"
 
 # ---------------------------
 # Colors
@@ -446,33 +446,33 @@ preview_motd() {
 # Aliases
 # ---------------------------
 install_aliases() {
-  say "Checking aliases in ${ALIASES_BASHRC}..."
-  [[ -f "${ALIASES_BASHRC}" ]] || touch "${ALIASES_BASHRC}"
-  backup_file "${ALIASES_BASHRC}"
+  say "Checking aliases in ${ALIASES_FILE}..."
+  [[ -f "${ALIASES_FILE}" ]] || touch "${ALIASES_FILE}"
+  backup_file "${ALIASES_FILE}"
 
   local added=0
 
-  if grep -q "alias bench=" "${ALIASES_BASHRC}" 2>/dev/null; then
+  if grep -q "alias bench=" "${ALIASES_FILE}" 2>/dev/null; then
     say "  bench   : already exists, skipping."
   else
-    printf "\nalias bench='wget -qO- bench.sh | bash'\n" >> "${ALIASES_BASHRC}"
+    printf "\nalias bench='wget -qO- bench.sh | bash'\n" >> "${ALIASES_FILE}"
     say "  ${C_OK}bench${R}   : added."
-    log_action "alias bench added to ${ALIASES_BASHRC}"
+    log_action "alias bench added to ${ALIASES_FILE}"
     (( added++ )) || true
   fi
 
-  if grep -q "alias geoip=" "${ALIASES_BASHRC}" 2>/dev/null; then
+  if grep -q "alias geoip=" "${ALIASES_FILE}" 2>/dev/null; then
     say "  geoip   : already exists, skipping."
   else
-    printf "alias geoip='bash <(wget -qO- https://github.com/vernette/ipregion/raw/master/ipregion.sh)'\n" >> "${ALIASES_BASHRC}"
+    printf "alias geoip='bash <(wget -qO- https://github.com/vernette/ipregion/raw/master/ipregion.sh)'\n" >> "${ALIASES_FILE}"
     say "  ${C_OK}geoip${R}   : added."
-    log_action "alias geoip added to ${ALIASES_BASHRC}"
+    log_action "alias geoip added to ${ALIASES_FILE}"
     (( added++ )) || true
   fi
 
   if (( added > 0 )); then
     say ""
-    say "  Run: ${C_DIM}source ${ALIASES_BASHRC}${R}  to apply in the current session."
+    say "  Aliases will be available in the next SSH session (or run: ${C_DIM}source ${ALIASES_FILE}${R})."
   fi
 }
 
@@ -761,7 +761,7 @@ main_menu() {
     echo
 
     _menu_section "Extras"
-    _menu_item "13" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
+    _menu_item "13" "Install aliases"         "bench, geoip  ->  /etc/profile.d/"
     _menu_item "14" "APT cleanup"             "autoremove + clean apt cache"
     _menu_item "15" "Show action log"         "last 20 entries from bootstrap log"
     echo
