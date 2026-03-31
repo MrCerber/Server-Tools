@@ -17,15 +17,15 @@
 
 Один скрипт — полная начальная настройка сервера. Устанавливает базовые пакеты, настраивает файрвол, Fail2ban, кастомный MOTD и shell-алиасы. Всё через интерактивное меню с цветным выводом и логированием.
 
-| | |
-|---|---|
-| 📦 | Обновляет пакеты и устанавливает базовый набор утилит |
-| 🔄 | Настраивает автоматические security-обновления |
-| 🛡️ | Управляет UFW и Fail2ban через интерактивные подменю |
-| 🖥️ | Устанавливает кастомный MOTD с системной информацией |
-| 🗂️ | Устанавливает 1Panel или 3x-ui через встроенные установщики |
-| ⚡ | Добавляет полезные алиасы в `.bashrc` |
-| 📝 | Логирует все действия и создаёт резервные копии |
+- 📦 Обновляет пакеты и устанавливает базовый набор утилит
+- 🔄 Настраивает автоматические security-обновления
+- 🛡️ Управляет UFW и Fail2ban через интерактивные подменю
+- 🔑 Меняет порт SSH из меню с защитой от ошибок
+- 🖥️ Устанавливает кастомный MOTD с системной информацией
+- 🗂️ Устанавливает 1Panel или 3x-ui через встроенные установщики
+- ⚡ Добавляет полезные алиасы в `.bashrc`
+- 🧹 Очищает APT-кэш и удаляет неиспользуемые пакеты
+- 📝 Логирует все действия и создаёт резервные копии
 
 ---
 
@@ -42,7 +42,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/hea
 
 ## Требования
 
-| | |
+| Требование | |
 |---|---|
 | **ОС** | Ubuntu / Debian *(другие дистрибутивы — на свой страх и риск)* |
 | **Права** | root |
@@ -73,18 +73,20 @@ bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/hea
     5)  Install custom MOTD      disable default + install 99-mrcerber
     6)  Restore default MOTD     re-enable system MOTD scripts
     7)  Preview MOTD             run-parts /etc/update-motd.d
+    8)  Change SSH port          update Port in sshd_config
 
   Security
-    8)  UFW submenu              firewall rules & management
-    9)  Fail2ban submenu         SSH brute-force protection
+    9)  UFW submenu              firewall rules & management
+   10)  Fail2ban submenu         SSH brute-force protection
 
   Panels
-   10)  Install 1Panel           web-based server management panel
-   11)  Install 3x-ui            Xray-based proxy management panel
+   11)  Install 1Panel           web-based server management panel
+   12)  Install 3x-ui            Xray-based proxy management panel
 
   Extras
-   12)  Install aliases          bench, geoip  ->  /root/.bashrc
-   13)  Show action log          last 20 entries from bootstrap log
+   13)  Install aliases          bench, geoip  ->  /root/.bashrc
+   14)  APT cleanup              autoremove + clean apt cache
+   15)  Show action log          last 20 entries from bootstrap log
 
     0)  Exit
 ```
@@ -156,6 +158,17 @@ unattended-upgrades          apt-listchanges          openssh-server
 </details>
 
 <details>
+<summary><b>🔑 Смена порта SSH</b></summary>
+<br>
+
+Изменяет порт SSH в `/etc/ssh/sshd_config` с автоматическим бэкапом и перезагрузкой сервиса.
+
+> [!WARNING]
+> Сначала открой новый порт в UFW (`9)  UFW submenu → Allow custom port`), только потом меняй порт SSH — иначе потеряешь доступ к серверу.
+
+</details>
+
+<details>
 <summary><b>🛡️ UFW — управление файрволом</b></summary>
 <br>
 
@@ -197,6 +210,19 @@ banaction = ufw
 enabled = true
 mode    = normal
 ```
+
+</details>
+
+<details>
+<summary><b>🧹 APT cleanup</b></summary>
+<br>
+
+Освобождает место на диске:
+
+1. `apt-get autoremove` — удаляет неиспользуемые зависимости
+2. `apt-get clean` — очищает кэш загруженных пакетов
+
+Выводит размер кэша до и после очистки.
 
 </details>
 

@@ -188,12 +188,6 @@ _menu_section() {
   printf "  ${C_SEC}%s${R}\n" "$1"
 }
 
-_menu_footer() {
-  echo
-  _sep
-  echo
-}
-
 _status_badge() {
   local type="$1" name="$2"
   if [[ "$type" == "cmd" ]]; then
@@ -315,12 +309,28 @@ restore_last_login() {
   say "Done."
 }
 
+ssh_change_port() {
+  read -r -p "Enter new SSH port [1-65535]: " port
+  if ! [[ "$port" =~ ^[0-9]{1,5}$ ]] || (( port < 1 || port > 65535 )); then
+    warn "Invalid port."; return 0
+  fi
+  say "${C_WARN}Make sure UFW allows port ${port} before reconnecting!${R}"
+  confirm "Change SSH port to ${port}? [y/N]: " || return 0
+  backup_file "${SSHD_CONFIG}"
+  if grep -qiE '^\s*Port\s+' "${SSHD_CONFIG}"; then
+    sed -i -E "s/^\s*Port\s+.*/Port ${port}/" "${SSHD_CONFIG}"
+  else
+    printf "\nPort %s\n" "${port}" >> "${SSHD_CONFIG}"
+  fi
+  systemctl reload ssh >/dev/null 2>&1 || systemctl reload sshd >/dev/null 2>&1 || true
+  log_action "ssh_change_port ${port}"
+  say "SSH port changed to ${port}. Reconnect on the new port."
+}
+
 # ---------------------------
 # MOTD management
 # ---------------------------
 disable_default_motd_scripts() {
-  backup_dir_tar "${MOTD_DIR}"
-
   shopt -s nullglob
   for f in "${MOTD_DIR}/"*; do
     [[ -f "$f" ]] || continue
@@ -337,8 +347,6 @@ disable_default_motd_scripts() {
 }
 
 enable_default_motd_scripts() {
-  backup_dir_tar "${MOTD_DIR}"
-
   local defaults=(
     "00-header"
     "10-help-text"
@@ -406,7 +414,6 @@ install_custom_motd() {
   disable_last_login
 
   say "Custom MOTD installed."
-  say "Tip: ensure /etc/update-motd.d/99-mrcerber reads logo from /etc/update-motd.d/logo.txt."
 
   if [[ -n "${tmp_dir}" ]]; then
     rm -rf "${tmp_dir}"
@@ -488,6 +495,20 @@ install_3xui() {
   log_action "install_3xui END"
 }
 
+cleanup_apt() {
+  local before
+  before="$(du -sh /var/cache/apt 2>/dev/null | awk '{print $1}')"
+  say "Cache before cleanup: ${before}"
+  say "Running autoremove + clean..."
+  log_action "cleanup_apt"
+  DEBIAN_FRONTEND=noninteractive apt-get autoremove -y
+  apt-get clean
+  local after
+  after="$(du -sh /var/cache/apt 2>/dev/null | awk '{print $1}')"
+  say "Cache after cleanup:  ${after}"
+  say "Done."
+}
+
 # ---------------------------
 # UFW menu
 # ---------------------------
@@ -519,7 +540,7 @@ ufw_allow_http_https() {
 ufw_allow_custom() {
   read -r -p "Enter port (e.g., 8443): " port
   if ! [[ "$port" =~ ^[0-9]{1,5}$ ]] || (( port < 1 || port > 65535 )); then
-    die "Invalid port."
+    warn "Invalid port."; return 0
   fi
   read -r -p "Protocol (tcp/udp/both) [tcp]: " proto
   proto="${proto:-tcp}"
@@ -528,7 +549,7 @@ ufw_allow_custom() {
     udp)  ufw allow "${port}/udp"; log_action "ufw allow ${port}/udp" ;;
     both) ufw allow "${port}/tcp"; ufw allow "${port}/udp"
           log_action "ufw allow ${port}/tcp+udp" ;;
-    *)    die "Invalid protocol." ;;
+    *)    warn "Invalid protocol."; return 0 ;;
   esac
 }
 
@@ -713,7 +734,7 @@ main_menu() {
     echo
     printf "  ${BOLD}${C_TITLE}MrCerber — New Server Bootstrap${R}\n"
     printf "  ${C_DIM}Ubuntu / Debian  |  Run as root  |  Backups: %s${R}\n" "${BACKUP_DIR}"
-    printf "  UFW: %-30s Fail2ban: %s\n" "$ufw_s" "$f2b_s"
+    printf "  UFW: %s    Fail2ban: %s\n" "$ufw_s" "$f2b_s"
     _sep
     echo
 
@@ -728,21 +749,23 @@ main_menu() {
     _menu_item " 5" "Install custom MOTD"     "disable default + install 99-mrcerber"
     _menu_item " 6" "Restore default MOTD"    "re-enable system MOTD scripts"
     _menu_item " 7" "Preview MOTD"            "run-parts /etc/update-motd.d"
+    _menu_item " 8" "Change SSH port"         "update Port in sshd_config"
     echo
 
     _menu_section "Security"
-    _menu_item " 8" "UFW submenu"             "firewall rules & management"
-    _menu_item " 9" "Fail2ban submenu"        "SSH brute-force protection"
+    _menu_item " 9" "UFW submenu"             "firewall rules & management"
+    _menu_item "10" "Fail2ban submenu"        "SSH brute-force protection"
     echo
 
     _menu_section "Panels"
-    _menu_item "10" "Install 1Panel"          "web-based server management panel"
-    _menu_item "11" "Install 3x-ui"           "Xray-based proxy management panel"
+    _menu_item "11" "Install 1Panel"          "web-based server management panel"
+    _menu_item "12" "Install 3x-ui"           "Xray-based proxy management panel"
     echo
 
     _menu_section "Extras"
-    _menu_item "12" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
-    _menu_item "13" "Show action log"         "last 20 entries from bootstrap log"
+    _menu_item "13" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
+    _menu_item "14" "APT cleanup"             "autoremove + clean apt cache"
+    _menu_item "15" "Show action log"         "last 20 entries from bootstrap log"
     echo
 
     _sep
@@ -758,12 +781,14 @@ main_menu() {
        5) install_custom_motd; pause ;;
        6) restore_default_motd; pause ;;
        7) preview_motd; pause ;;
-       8) ufw_menu ;;
-       9) fail2ban_menu ;;
-      10) install_1panel; pause ;;
-      11) install_3xui; pause ;;
-      12) install_aliases; pause ;;
-      13) show_log; pause ;;
+       8) ssh_change_port; pause ;;
+       9) ufw_menu ;;
+      10) fail2ban_menu ;;
+      11) install_1panel; pause ;;
+      12) install_3xui; pause ;;
+      13) install_aliases; pause ;;
+      14) cleanup_apt; pause ;;
+      15) show_log; pause ;;
        0) exit 0 ;;
        *) warn "Invalid choice."; pause ;;
     esac
