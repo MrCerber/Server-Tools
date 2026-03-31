@@ -1,120 +1,132 @@
-# MrCerber — Server Tools
+<div align="center">
 
-Интерактивный bash-инструмент для первоначальной настройки свежего сервера Ubuntu/Debian.
-Запускается один раз после деплоя — приводит сервер в рабочее состояние за несколько минут.
+```
+              ___          _
+  /\/\  _ __ / __\___ _ __| |__   ___ _ __
+ /    \| '__/ /  / _ \ '__| '_ \ / _ \ '__|
+/ /\/\ \ | / /__|  __/ |  | |_) |  __/ |
+\/    \/_| \____/\___|_|  |_.__/ \___|_|
+
+     __     _                      _
+  /\ \ \___| |___      _____  _ __| | __
+ /  \/ / _ \ __\ \ /\ / / _ \| '__| |/ /
+/ /\  /  __/ |_ \ V  V / (_) | |  |   <
+\_\ \/ \___|\__| \_/\_/ \___/|_|  |_|\_\
+```
+
+# Server Tools
+
+**Интерактивный bootstrap-скрипт для свежего сервера Ubuntu / Debian**
+
+![Shell](https://img.shields.io/badge/Shell-Bash-4EAA25?style=flat-square&logo=gnubash&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Debian-E95420?style=flat-square&logo=ubuntu&logoColor=white)
+![License](https://img.shields.io/badge/License-Personal-blue?style=flat-square)
+![Root](https://img.shields.io/badge/Requires-root-red?style=flat-square)
+
+</div>
 
 ---
 
-## Возможности
+## О проекте
 
-- Обновление пакетов и установка базового набора утилит
-- Настройка автоматических security-обновлений (`unattended-upgrades`)
-- Управление файрволом UFW через интерактивное меню
-- Защита SSH от брутфорса через Fail2ban
-- Установка кастомного MOTD с системной информацией при входе
-- Установка полезных shell-алиасов (`bench`, `geoip`)
-- Логирование всех действий
-- Резервное копирование всех изменяемых файлов
+Один скрипт — полная начальная настройка сервера. Устанавливает базовые пакеты, настраивает файрвол, Fail2ban, кастомный MOTD и shell-алиасы. Всё через интерактивное меню с цветным выводом и логированием.
 
----
+**Что делает скрипт:**
 
-## Требования
-
-| Требование | Детали |
-|---|---|
-| ОС | Ubuntu / Debian (другие — на свой страх и риск) |
-| Права | Запуск **только от root** |
-| SSH-ключи | Должны быть установлены до запуска |
+- 📦 Обновляет пакеты и устанавливает базовый набор утилит
+- 🔄 Настраивает автоматические security-обновления
+- 🛡️ Управляет UFW и Fail2ban через удобные подменю
+- 🖥️ Устанавливает кастомный MOTD с системной информацией
+- ⚡ Добавляет полезные алиасы в `.bashrc`
+- 📝 Логирует все действия и создаёт резервные копии
 
 ---
 
 ## Быстрый старт
 
 ```bash
-# Клонировать репозиторий
 git clone https://github.com/MrCerber/Server-Tools.git
 cd Server-Tools
-
-# Запустить
 bash install.sh
 ```
 
-Скрипт проверит ОС и откроет интерактивное меню.
+> [!IMPORTANT]
+> Скрипт должен запускаться **от root**. SSH-ключи должны быть установлены заранее.
 
 ---
 
-## Структура файлов
+## Требования
 
-```
-Server-Tools/
-├── install.sh       # Главный скрипт с интерактивным меню
-├── 99-mrcerber      # Скрипт кастомного MOTD
-├── logo.txt         # ASCII-арт логотип для MOTD
-├── CLAUDE.md        # Контекст для Claude Code
-└── README.md        # Этот файл
-```
+| | |
+|---|---|
+| **ОС** | Ubuntu / Debian *(другие дистрибутивы — на свой страх и риск)* |
+| **Права** | root |
+| **Интернет** | нужен для установки пакетов и загрузки MOTD |
 
 ---
 
 ## Меню
 
+При запуске открывается интерактивное цветное меню со статусом сервисов в реальном времени:
+
 ```
-MrCerber — New Server Bootstrap
-──────────────────────────────────────────────────
-UFW: active   Fail2ban: active
+  MrCerber — New Server Bootstrap
+  --------------------------------------------------
+  UFW: active        Fail2ban: active
 
   System
-   1)  Full base setup          update + packages + auto-updates
-   2)  Update / upgrade only    apt-get update && upgrade
-   3)  Install base packages    curl, git, htop, btop, jq, ufw...
-   4)  Enable auto-updates      unattended-upgrades
+    1)  Full base setup          update + packages + auto-updates
+    2)  Update / upgrade only    apt-get update && upgrade
+    3)  Install base packages    curl, git, htop, btop, jq, ufw...
+    4)  Enable auto-updates      unattended-upgrades
 
   MOTD & SSH
-   5)  Install custom MOTD      disable default + install 99-mrcerber
-   6)  Restore default MOTD     re-enable system MOTD scripts
-   7)  Preview MOTD             run-parts /etc/update-motd.d
+    5)  Install custom MOTD      disable default + install 99-mrcerber
+    6)  Restore default MOTD     re-enable system MOTD scripts
+    7)  Preview MOTD             run-parts /etc/update-motd.d
 
   Security
-   8)  UFW submenu              firewall rules & management
-   9)  Fail2ban submenu         SSH brute-force protection
+    8)  UFW submenu              firewall rules & management
+    9)  Fail2ban submenu         SSH brute-force protection
 
   Extras
-  10)  Install aliases          bench, geoip  ->  /root/.bashrc
-  11)  Show action log          last 20 entries from bootstrap log
+   10)  Install aliases          bench, geoip  ->  /root/.bashrc
+   11)  Show action log          last 20 entries from bootstrap log
 
-   0)  Exit
+    0)  Exit
 ```
 
 ---
 
-## Детали функций
+## Функции
 
-### 1. Full base setup
+<details>
+<summary><b>📦 Full base setup</b></summary>
+<br>
 
-Выполняет три шага за один раз:
+Запускает три шага последовательно и выводит итоговый summary:
+
 1. `apt-get update && apt-get upgrade`
 2. Установка базовых пакетов
-3. Включение автоматических обновлений
-
-По завершении выводит summary с временем выполнения.
+3. Включение `unattended-upgrades`
 
 **Устанавливаемые пакеты:**
-`ca-certificates` `curl` `wget` `gnupg` `lsb-release` `unzip` `zip` `tar`
-`nano` `vim` `htop` `btop` `net-tools` `iproute2` `dnsutils` `jq` `git`
-`ufw` `fail2ban` `unattended-upgrades` `apt-listchanges` `openssh-server`
 
----
+```
+ca-certificates  curl        wget       gnupg        lsb-release
+unzip            zip         tar        nano         vim
+htop             btop        net-tools  iproute2     dnsutils
+jq               git         ufw        fail2ban
+unattended-upgrades          apt-listchanges          openssh-server
+```
 
-### 4. Автообновления
+</details>
 
-Настраивает `unattended-upgrades` для автоматической установки security-патчей.
-Конфигурация — консервативная: только security и important updates, **без автоматической перезагрузки**.
+<details>
+<summary><b>🖥️ Кастомный MOTD</b></summary>
+<br>
 
----
-
-### 5. Кастомный MOTD
-
-При SSH-входе отображает:
+При SSH-входе вместо стандартного MOTD отображается:
 
 ```
               ___          _
@@ -123,7 +135,7 @@ UFW: active   Fail2ban: active
 ...
 
   System
-  ────────────────────────────────────────────────
+  ────────────────────────────────────────────────────
     Host          server01
     IP            1.2.3.4
     OS            Ubuntu 22.04.3 LTS
@@ -136,23 +148,26 @@ UFW: active   Fail2ban: active
     Last Login    root from 10.0.0.1 at Mon Jan 6 12:00:00 2025
 
   Storage
-  ────────────────────────────────────────────────
+  ────────────────────────────────────────────────────
     Disk /        [████████░░░░░░░░░░░░░░░░]  33%  (16G/48G)
 
   Services
-  ────────────────────────────────────────────────
+  ────────────────────────────────────────────────────
     docker: ○ inactive   fail2ban: ● active   ufw: ● active
 
   Updates
-  ────────────────────────────────────────────────
+  ────────────────────────────────────────────────────
     Status        System is up to date
 ```
 
-Если файлы `99-mrcerber` и `logo.txt` не найдены рядом со скриптом — они автоматически скачиваются с GitHub.
+Файлы `99-mrcerber` и `logo.txt` берутся из папки рядом со скриптом.
+Если не найдены — скачиваются автоматически с GitHub.
 
----
+</details>
 
-### 8. UFW Submenu
+<details>
+<summary><b>🛡️ UFW — управление файрволом</b></summary>
+<br>
 
 | Пункт | Действие |
 |---|---|
@@ -160,14 +175,16 @@ UFW: active   Fail2ban: active
 | Apply defaults | `deny incoming` / `allow outgoing` |
 | Allow SSH | открыть `22/tcp` |
 | Allow HTTP+HTTPS | открыть `80` + `443` |
-| Allow custom port | ввести порт и протокол (tcp/udp/both) |
+| Allow custom port | ввести порт и протокол (tcp / udp / both) |
 | Delete rule | удалить правило по номеру |
-| Enable / Disable | включить/выключить UFW |
-| Reset | сбросить все правила (с подтверждением) |
+| Enable / Disable | включить / выключить UFW |
+| Reset | сбросить все правила *(с подтверждением)* |
 
----
+</details>
 
-### 9. Fail2ban Submenu
+<details>
+<summary><b>🚫 Fail2ban — защита SSH</b></summary>
+<br>
 
 | Пункт | Действие |
 |---|---|
@@ -176,7 +193,8 @@ UFW: active   Fail2ban: active
 | Status | статус сервиса + sshd jail |
 | Unban IP | разбанить IP из sshd jail |
 
-**jail.local по умолчанию:**
+Конфигурация `jail.local` по умолчанию:
+
 ```ini
 [DEFAULT]
 bantime  = 1h
@@ -190,14 +208,19 @@ enabled = true
 mode    = normal
 ```
 
----
+</details>
 
-### 10. Алиасы
+<details>
+<summary><b>⚡ Алиасы</b></summary>
+<br>
 
 Добавляет в `/root/.bashrc` (только если алиас ещё не существует):
 
 ```bash
+# Быстрый тест производительности сервера
 alias bench='wget -qO- bench.sh | bash'
+
+# Геолокация текущего IP
 alias geoip='bash <(wget -qO- https://github.com/vernette/ipregion/raw/master/ipregion.sh)'
 ```
 
@@ -206,21 +229,22 @@ alias geoip='bash <(wget -qO- https://github.com/vernette/ipregion/raw/master/ip
 source ~/.bashrc
 ```
 
----
-
-## Безопасность
-
-- Перед каждым изменением системного файла создаётся резервная копия в `/root/.mrcerber-bootstrap-backups/`
-- Все деструктивные операции требуют явного подтверждения `[y/N]`
-- Все действия логируются в `/root/.mrcerber-bootstrap.log`
-- Проверка интернет-соединения перед попыткой скачивания
+</details>
 
 ---
 
-## Логирование
+## Безопасность и надёжность
 
-Каждое действие пишется в `/root/.mrcerber-bootstrap.log`:
+| Механизм | Детали |
+|---|---|
+| **Резервные копии** | Каждый изменяемый файл бэкапится в `/root/.mrcerber-bootstrap-backups/` с timestamp |
+| **Логирование** | Все действия пишутся в `/root/.mrcerber-bootstrap.log` |
+| **Подтверждение** | Деструктивные операции требуют явного `[y/N]` |
+| **Проверка OS** | Предупреждение при запуске не на Ubuntu/Debian |
+| **Проверка сети** | Ping-тест перед загрузкой файлов |
+| **Идемпотентность** | Большинство операций безопасно запускать повторно |
 
+**Пример лога:**
 ```
 [2025-01-06 12:00:01] OS check passed: Ubuntu 22.04.3 LTS
 [2025-01-06 12:00:05] full_base_setup START
@@ -229,25 +253,29 @@ source ~/.bashrc
 [2025-01-06 12:02:10] install_base_packages
 [2025-01-06 12:03:45] enable_auto_updates
 [2025-01-06 12:03:46] full_base_setup END (221s)
-```
-
-Просмотр последних 20 записей — пункт `11` в главном меню.
-
----
-
-## Резервные копии
-
-Все бэкапы хранятся в `/root/.mrcerber-bootstrap-backups/` с временными метками:
-
-```
-/root/.mrcerber-bootstrap-backups/
-├── etc__ssh__sshd_config.20250106-120001.bak
-├── etc__update-motd.d.20250106-120010.tar.gz
-└── etc__apt__apt.conf.d__20auto-upgrades.20250106-120045.bak
+[2025-01-06 12:05:10] install_custom_motd
+[2025-01-06 12:05:11] disable_last_login
+[2025-01-06 12:05:30] ufw allow 22/tcp
+[2025-01-06 12:05:35] ufw enable
 ```
 
 ---
 
-## Автор
+## Структура проекта
 
-**MrCerber** — [github.com/MrCerber](https://github.com/MrCerber)
+```
+Server-Tools/
+├── install.sh        # Главный скрипт с интерактивным меню
+├── 99-mrcerber       # Скрипт кастомного MOTD
+├── logo.txt          # ASCII-арт логотип для MOTD
+├── CLAUDE.md         # Контекст проекта для Claude Code
+└── README.md         # Документация
+```
+
+---
+
+<div align="center">
+
+Сделано с ❤️ **MrCerber**
+
+</div>
