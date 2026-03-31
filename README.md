@@ -50,6 +50,12 @@ bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/hea
 
 ---
 
+## Скриншот
+
+![Server Tools](image.png)
+
+---
+
 ## Меню
 
 При запуске открывается интерактивное цветное меню со статусом сервисов в реальном времени.
