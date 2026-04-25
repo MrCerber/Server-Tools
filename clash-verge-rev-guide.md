@@ -1,103 +1,212 @@
-# Clash Verge Rev — Полный гайд по правилам и конфигурации
+# Clash Verge Rev — Полный гайд на русском
 
-> Версия актуальна для **v2.4.7** (апрель 2026)  
-> Ядро: **Mihomo** (Clash.Meta)  
-> Официальный репозиторий: https://github.com/clash-verge-rev/clash-verge-rev  
-> Документация Mihomo: https://wiki.metacubex.one/en/config/rules/
+> **Версия:** v2.4.7 (актуально на апрель 2026)  
+> **Ядро:** Mihomo (Clash.Meta)  
+> **GitHub:** https://github.com/clash-verge-rev/clash-verge-rev  
+> **Документация Mihomo:** https://wiki.metacubex.one/en/config/rules/
 
 ---
 
 ## Содержание
 
-1. [Как работают профили](#1-как-работают-профили)
-2. [Global Extend (Merge и Script)](#2-global-extend-merge-и-script)
-3. [Синтаксис Merge конфига](#3-синтаксис-merge-конфига)
-4. [Все типы правил](#4-все-типы-правил)
-5. [Bypass by default (как в Throne/sing-box)](#5-bypass-by-default-как-в-thronesing-box)
-6. [Правила для процессов (PROCESS-NAME)](#6-правила-для-процессов-process-name)
-7. [Готовый конфиг](#7-готовый-конфиг)
-8. [Важные замечания](#8-важные-замечания)
+1. [Что такое Clash Verge Rev](#1-что-такое-clash-verge-rev)
+2. [Установка](#2-установка)
+3. [Импорт подписки](#3-импорт-подписки)
+4. [Режимы перехвата трафика](#4-режимы-перехвата-трафика)
+5. [Как работают правила](#5-как-работают-правила)
+6. [Добавление кастомных правил (Edit Rules)](#6-добавление-кастомных-правил-edit-rules)
+7. [Global Extend Config — для чего он нужен](#7-global-extend-config--для-чего-он-нужен)
+8. [Все типы правил](#8-все-типы-правил)
+9. [Bypass by default (как в sing-box/Throne)](#9-bypass-by-default-как-в-sing-boxthrone)
+10. [Правила для процессов](#10-правила-для-процессов)
+11. [Готовый пример конфига](#11-готовый-пример-конфига)
+12. [Страницы интерфейса](#12-страницы-интерфейса)
+13. [Частые вопросы](#13-частые-вопросы)
 
 ---
 
-## 1. Как работают профили
+## 1. Что такое Clash Verge Rev
 
-В Clash Verge Rev есть два слоя конфигурации:
+**Clash Verge Rev** — это современный GUI-клиент для прокси на базе фреймворка Tauri (Rust + WebView). Использует ядро **Mihomo** (форк Clash.Meta, активно поддерживается сообществом).
 
-**Основной профиль (Remote / Local)** — подписка от сервера или локальный YAML.  
-Содержит прокси-серверы, группы и правила маршрутизации.
+Оригинальный Clash был закрыт в 2023 году. Clash Verge Rev — живой форк, который продолжает развиваться.
 
-**Global Extend** — глобальные модификаторы поверх основного профиля:
-- **Global Merge** — добавляет/переопределяет правила и настройки через YAML
-- **Global Script** — трансформирует конфиг через JavaScript (quickjs)
+**Поддерживаемые протоколы:**
+- VLESS + REALITY + VISION
+- VMess
+- Trojan
+- Shadowsocks / ShadowsocksR
+- Hysteria2
+- TUIC v5
+- WireGuard
+- SOCKS5 / HTTP
 
-Global Extend применяется ко **всем** профилям одновременно, независимо от того, какой активен.
-
----
-
-## 2. Global Extend (Merge и Script)
-
-### Где находится
-
-Страница **Профили** → правый верхний угол → иконка 🔥 (или кнопки `Global Extend Merge` / `Global Extend Script`).
-
-В v2.4.7 при нажатии **Новый** в диалоге доступны только **Remote** и **Local**.  
-Merge и Script — это отдельная глобальная секция, не создаётся через кнопку "Новый".
-
-### Активация
-
-После редактирования Merge-конфига обязательно нажать **disable → enable** (или кнопку 🔥), иначе изменения не применятся.
+**Платформы:** Windows 10+, macOS 10.15+, Linux
 
 ---
 
-## 3. Синтаксис Merge конфига
+## 2. Установка
 
-```yaml
-# Добавить правила ПЕРЕД правилами подписки (высший приоритет)
-prepend-rules:
-  - RULE_TYPE,value,TARGET
+### Windows
 
-# Добавить правила ПОСЛЕ правил подписки (низший приоритет — бесполезно если есть MATCH)
-append-rules:
-  - RULE_TYPE,value,TARGET
+1. Скачай последний релиз с GitHub: https://github.com/clash-verge-rev/clash-verge-rev/releases
+2. Выбери файл `Clash.Verge_x.x.x_x64-setup.exe`
+3. Запусти установщик
+4. При первом запуске Windows может потребовать **WebView2** — установи его с сайта Microsoft если не установлен
 
-# Добавить прокси-серверы
-prepend-proxies: []
-append-proxies: []
+> **Service Mode** — рекомендуется установить при первом запуске. Это позволяет TUN-режиму работать без запуска приложения от имени администратора каждый раз. Перейди: **Настройки → Система → Service Mode → Установить**.
 
-# Добавить группы прокси
-prepend-proxy-groups: []
-append-proxy-groups: []
+### macOS
 
-# Переопределить любую секцию оригинального конфига
-rules:
-  - MATCH,DIRECT
+1. Скачай `.dmg` файл для своей архитектуры (Intel или Apple Silicon)
+2. Перетащи в папку Applications
+3. Если macOS блокирует запуск: `sudo xattr -r -d com.apple.quarantine /Applications/Clash\ Verge.app`
+
+### Linux
+
+Доступны пакеты `.AppImage`, `.deb`, `.rpm`.
+
+---
+
+## 3. Импорт подписки
+
+Подписка — это URL, который возвращает YAML-конфиг с прокси-серверами и правилами.
+
+**Способ 1 — через поле URL:**
+1. Открой страницу **Профили**
+2. Вставь URL подписки в поле **URL профиля**
+3. Нажми **Импорт**
+
+**Способ 2 — через кнопку Новый:**
+1. Нажми кнопку **Новый** (правый верхний угол)
+2. Выбери тип **Remote**
+3. Вставь URL подписки
+4. Нажми **Сохранить**
+
+После импорта кликни на карточку профиля чтобы **активировать** его. Активный профиль подсвечен синим.
+
+> Для автообновления: правая кнопка на профиле → **Изменить информацию** → установи интервал обновления в минутах.
+
+---
+
+## 4. Режимы перехвата трафика
+
+### System Proxy (Системный прокси)
+
+Устанавливает системные настройки прокси Windows/macOS. Браузеры и большинство приложений используют его автоматически.
+
+**Минусы:** не перехватывает трафик приложений, которые игнорируют системный прокси (игры, некоторые системные утилиты, UWP-приложения в Windows).
+
+### TUN Mode (TUN-режим) ✅ Рекомендуется
+
+Создаёт виртуальный сетевой интерфейс, который перехватывает **весь** трафик системы на уровне ядра ОС.
+
+**Плюсы:**
+- Работает с любыми приложениями, включая игры и UDP
+- Поддерживает правила `PROCESS-NAME`
+- Не требует настройки в каждом приложении отдельно
+
+**Как включить:** Главная страница → переключатель **TUN Mode**.
+
+> При первом включении может потребоваться Service Mode (см. установку) или запуск от имени администратора.
+
+---
+
+## 5. Как работают правила
+
+Mihomo применяет правила **сверху вниз**. Как только трафик совпал с правилом — оно применяется, дальнейшая проверка останавливается.
+
+```
+Трафик → Правило 1? → нет → Правило 2? → нет → ... → MATCH (финальное)
 ```
 
-> **Важно:** `prepend-rules` вставляет правила **до** `MATCH` из подписки.  
-> `append-rules` вставляет **после** `MATCH` — такие правила никогда не сработают.  
-> Для bypass by default нужно переопределить `rules: - MATCH,DIRECT` напрямую.
+**Пример:**
+```
+- GEOIP,private,DIRECT     ← локальная сеть сразу напрямую
+- GEOSITE,youtube,PROXY    ← YouTube через прокси
+- GEOSITE,google,PROXY     ← Google через прокси
+- MATCH,DIRECT             ← всё остальное напрямую
+```
 
-> **Нельзя переопределить:** `mixed-port`, `log-level`, `external-controller`, `dns.enable` в TUN-режиме — эти параметры контролирует сам Clash Verge Rev.
+Если поставить `MATCH,PROXY` — весь трафик пойдёт через прокси (режим Global).  
+Если поставить `MATCH,DIRECT` — весь неизвестный трафик напрямую (bypass by default).
 
 ---
 
-## 4. Все типы правил
+## 6. Добавление кастомных правил (Edit Rules)
 
-Формат: `ТИП,значение,ЦЕЛЬ[,опции]`
+**Это основной способ добавления правил в v2.x.**
 
-Цель: имя прокси-группы из подписки (например `Proxy`, `🚀 Узел выбора`) или `DIRECT` / `REJECT`.
+В версии v2.x функция `prepend-rules` из файла конфига **перенесена в визуальный редактор**, который открывается через контекстное меню подписки.
+
+### Шаги:
+
+1. Страница **Профили**
+2. **Правая кнопка мыши** на карточке активной подписки
+3. Выбери **Редактировать правила**
+4. Откроется диалог с формой:
+   - **Тип правила** — дропдаун: DOMAIN, GEOSITE, GEOIP, PROCESS-NAME и др.
+   - **Содержимое правила** — значение (например: `youtube`, `google.com`)
+   - **Политика прокси** — DIRECT, PROXY или имя группы из подписки
+5. Нажми **Добавить правило в начало** (prepend) — правило встанет перед всеми остальными
+
+> ⚠️ Всегда используй **"Добавить правило в начало"** — так правило встанет до финального `MATCH`. Кнопка **"Добавить правило в конец"** ставит правило после `MATCH`, и оно никогда не сработает.
+
+6. Повтори для каждого правила
+7. Нажми **Сохранить**
+
+---
+
+## 7. Global Extend Config — для чего он нужен
+
+**Global Extend Config** (карточка с тегом `Merge` на странице Профили) — это **НЕ** место для правил prepend/append в v2.x.
+
+Его назначение — **переопределение** конкретных параметров конфига поверх подписки.
+
+### Что можно переопределить:
+
+```yaml
+# Запоминать выбранный узел между перезапусками
+profile:
+  store-selected: true
+
+# Bypass by default — переопределить финальное правило
+rules:
+  - MATCH,DIRECT
+
+# Включить определение процессов (нужно для PROCESS-NAME)
+find-process-mode: always
+
+# Отключить IPv6 в DNS
+dns:
+  ipv6: false
+```
+
+### Что НЕ работает в Global Extend Config:
+- `prepend-rules` — **не работает** в v2.x, используй "Редактировать правила"
+- `mixed-port`, `log-level`, `external-controller` — контролируются приложением, нельзя переопределить
+
+### Как открыть:
+Страница **Профили** → карточка **Global Extend Config** (тег Merge) → правая кнопка → **Изменить файл**.
+
+---
+
+## 8. Все типы правил
+
+Формат: `ТИП,значение,ЦЕЛЬ`
+
+Цель: `DIRECT`, `REJECT`, или имя прокси-группы из подписки (например `PROXY`).
 
 ### Доменные правила
 
 | Тип | Пример | Описание |
 |---|---|---|
-| `DOMAIN` | `DOMAIN,api.openai.com,Proxy` | Точное совпадение домена |
-| `DOMAIN-SUFFIX` | `DOMAIN-SUFFIX,google.com,Proxy` | Домен и все поддомены |
-| `DOMAIN-KEYWORD` | `DOMAIN-KEYWORD,youtube,Proxy` | Содержит ключевое слово |
-| `DOMAIN-WILDCARD` | `DOMAIN-WILDCARD,*.google.*,Proxy` | Wildcard-паттерн |
+| `DOMAIN` | `DOMAIN,api.openai.com,PROXY` | Точное совпадение домена |
+| `DOMAIN-SUFFIX` | `DOMAIN-SUFFIX,google.com,PROXY` | Домен + все поддомены |
+| `DOMAIN-KEYWORD` | `DOMAIN-KEYWORD,youtube,PROXY` | Содержит ключевое слово |
+| `DOMAIN-WILDCARD` | `DOMAIN-WILDCARD,*.google.*,PROXY` | Wildcard-паттерн |
 | `DOMAIN-REGEX` | `DOMAIN-REGEX,^ads\.,REJECT` | Регулярное выражение |
-| `GEOSITE` | `GEOSITE,youtube,Proxy` | Встроенный список сайтов |
+| `GEOSITE` | `GEOSITE,youtube,PROXY` | Встроенный список сайтов |
 
 ### IP-правила
 
@@ -105,30 +214,32 @@ rules:
 |---|---|---|
 | `IP-CIDR` | `IP-CIDR,192.168.0.0/16,DIRECT,no-resolve` | Диапазон IPv4 |
 | `IP-CIDR6` | `IP-CIDR6,::1/128,DIRECT,no-resolve` | Диапазон IPv6 |
-| `GEOIP` | `GEOIP,private,DIRECT,no-resolve` | Страна или категория IP |
-| `IP-ASN` | `IP-ASN,13335,DIRECT` | Автономная система |
+| `GEOIP` | `GEOIP,private,DIRECT,no-resolve` | IP по стране/категории |
+| `IP-ASN` | `IP-ASN,13335,PROXY` | Автономная система |
 
-> `no-resolve` — не резолвить домен для IP-правил (рекомендуется всегда добавлять к GEOIP/IP-CIDR).
+> `no-resolve` — не делать DNS-запрос для определения IP. Добавляй всегда к IP-правилам чтобы избежать утечки DNS.
 
-### Правила для процессов (только Windows/macOS/Linux десктоп)
+### Правила для процессов
 
 | Тип | Пример | Описание |
 |---|---|---|
-| `PROCESS-NAME` | `PROCESS-NAME,telegram.exe,DIRECT` | По имени процесса |
+| `PROCESS-NAME` | `PROCESS-NAME,Discord.exe,PROXY` | По имени процесса |
 | `PROCESS-NAME-WILDCARD` | `PROCESS-NAME-WILDCARD,steam*,DIRECT` | Wildcard по имени |
-| `PROCESS-PATH` | `PROCESS-PATH,C:\Program Files\...,DIRECT` | По полному пути |
+| `PROCESS-PATH` | `PROCESS-PATH,C:\Games\...,DIRECT` | По полному пути |
 
-> Для работы PROCESS-NAME нужно включить в **Настройках**: `Find Process Mode` → `always` или `strict`.  
-> В System Proxy режиме правила процессов не работают — только в TUN-режиме.
+> **Требования для PROCESS-NAME:**
+> 1. Должен быть включён **TUN-режим**
+> 2. В Global Extend Config должно быть: `find-process-mode: always`
+> 3. На Windows имена процессов без учёта регистра (discord.exe = Discord.exe)
 
 ### Портовые правила
 
 | Тип | Пример | Описание |
 |---|---|---|
-| `DST-PORT` | `DST-PORT,443,Proxy` | Порт назначения |
+| `DST-PORT` | `DST-PORT,443,PROXY` | Порт назначения |
 | `SRC-PORT` | `SRC-PORT,7777,DIRECT` | Порт источника |
 
-### Итоговое правило
+### Финальное правило
 
 | Тип | Пример | Описание |
 |---|---|---|
@@ -136,140 +247,204 @@ rules:
 
 ### Полезные GEOSITE категории
 
-| Категория | Описание |
+| Категория | Что включает |
 |---|---|
 | `youtube` | YouTube |
-| `google` | Google сервисы |
+| `google` | Все сервисы Google |
 | `telegram` | Telegram |
 | `twitter` | Twitter/X |
-| `openai` | ChatGPT, OpenAI |
-| `gfw` | Общий список заблокированных (для Китая, частично РФ) |
+| `openai` | ChatGPT, OpenAI API |
+| `gfw` | Список заблокированных сайтов (обновляется) |
 | `private` | Локальные адреса (127.x, 192.168.x и т.д.) |
 | `category-ads-all` | Рекламные домены |
 
 ### Полезные GEOIP категории
 
-| Категория | Описание |
+| Категория | Что включает |
 |---|---|
-| `private` | Приватные IP-диапазоны |
-| `telegram` | IP-диапазоны Telegram |
-| `IL` | Израиль |
-| `RU` | Россия |
-| `CN` | Китай |
+| `private` | Все приватные IP-диапазоны |
+| `telegram` | IP-серверы Telegram |
+| `RU` | Российские IP |
+| `IL` | Израильские IP |
+| `CN` | Китайские IP |
 
 ---
 
-## 5. Bypass by default (как в Throne/sing-box)
+## 9. Bypass by default (как в sing-box/Throne)
 
-Логика: всё идёт напрямую, кроме явно указанных заблокированных сайтов.
+Логика: весь трафик идёт **напрямую**, кроме явно заблокированных ресурсов.
 
-В Throne (sing-box) это поведение по умолчанию — `direct` как финальное правило.  
-В Clash это реализуется через переопределение `MATCH` на `DIRECT`.
+В Throne (sing-box) это поведение по умолчанию через `direct` как финальное правило.  
+В Clash это реализуется через `MATCH,DIRECT` в конце списка правил.
 
-```yaml
-profile:
-  store-selected: true  # запоминать выбранный узел между перезапусками
+### Шаг 1 — Добавь правила через "Редактировать правила"
 
-prepend-rules:
-  # Локальные адреса — всегда напрямую
-  - GEOIP,private,DIRECT,no-resolve
+Правая кнопка на подписке → **Редактировать правила** → добавляй каждое правило через **"Добавить правило в начало"**:
 
-  # Заблокированные ресурсы — через прокси
-  - GEOSITE,youtube,Proxy
-  - GEOSITE,google,Proxy
-  - GEOSITE,telegram,Proxy
-  - GEOSITE,twitter,Proxy
-  - GEOSITE,openai,Proxy
-  - GEOSITE,gfw,Proxy
+| Тип | Содержимое | Политика |
+|---|---|---|
+| GEOIP | private | DIRECT |
+| GEOSITE | youtube | PROXY |
+| GEOSITE | google | PROXY |
+| GEOSITE | telegram | PROXY |
+| GEOSITE | twitter | PROXY |
+| GEOSITE | openai | PROXY |
 
-# Переопределяем финальное правило подписки
-rules:
-  - MATCH,DIRECT
-```
+### Шаг 2 — Настрой Global Extend Config
 
-> Замени `Proxy` на точное название группы из твоей подписки.  
-> Название видно на странице **Прокси** — например `🚀 Узел выбора` или просто `Proxy`.
-
----
-
-## 6. Правила для процессов (PROCESS-NAME)
-
-### Требования
-
-1. Режим **TUN** должен быть включён (System Proxy не перехватывает трафик процессов).
-2. В **Настройки** → найти `Find Process Mode` → поставить `always` или `strict`.
-
-### Пример
-
-```yaml
-prepend-rules:
-  # Игры — напрямую
-  - PROCESS-NAME,steam.exe,DIRECT
-  - PROCESS-NAME,steamwebhelper.exe,DIRECT
-  - PROCESS-NAME-WILDCARD,division*,DIRECT
-
-  # Мессенджеры — через прокси
-  - PROCESS-NAME,Telegram.exe,Proxy
-
-  # Остальные правила...
-  - GEOIP,private,DIRECT,no-resolve
-  - GEOSITE,youtube,Proxy
-  - GEOSITE,gfw,Proxy
-
-rules:
-  - MATCH,DIRECT
-```
-
-> На Windows имена процессов **без учёта регистра** (telegram.exe = Telegram.exe).  
-> На macOS/Linux — с учётом регистра.
-
----
-
-## 7. Готовый конфиг
-
-Минимальный рабочий Merge конфиг с bypass by default:
+Карточка **Global Extend Config** → правая кнопка → **Изменить файл**:
 
 ```yaml
 profile:
   store-selected: true
 
-prepend-rules:
-  # === Кастомные правила (правь под себя) ===
-  # - DOMAIN-SUFFIX,example.com,DIRECT
-  # - PROCESS-NAME,telegram.exe,Proxy
-
-  # === Локальная сеть ===
-  - GEOIP,private,DIRECT,no-resolve
-
-  # === Заблокированные → прокси ===
-  - GEOSITE,youtube,Proxy
-  - GEOSITE,google,Proxy
-  - GEOSITE,telegram,Proxy
-  - GEOSITE,twitter,Proxy
-  - GEOSITE,openai,Proxy
-  - GEOSITE,gfw,Proxy
-
-# Bypass by default — всё остальное напрямую
+# Bypass by default
 rules:
   - MATCH,DIRECT
+
+# Для работы PROCESS-NAME (нужен TUN-режим)
+find-process-mode: always
+```
+
+### Шаг 3 — Сохрани и проверь
+
+Открой страницу **Правила** — там должны быть твои правила вверху списка, и `MATCH,DIRECT` в самом конце.
+
+---
+
+## 10. Правила для процессов
+
+Позволяют маршрутизировать трафик конкретных приложений.
+
+**Требования:**
+- TUN-режим включён
+- `find-process-mode: always` в Global Extend Config
+
+**Добавление через "Редактировать правила":**
+
+| Тип | Содержимое | Политика |
+|---|---|---|
+| PROCESS-NAME | Discord.exe | PROXY |
+| PROCESS-NAME | steam.exe | DIRECT |
+| PROCESS-NAME | steamwebhelper.exe | DIRECT |
+| PROCESS-NAME-WILDCARD | division* | DIRECT |
+
+**Важно:** Для игр — DIRECT (игры чувствительны к задержке и должны идти напрямую если сервер доступен без прокси).
+
+---
+
+## 11. Готовый пример конфига
+
+### Правила в редакторе (добавляй каждое через "Добавить правило в начало"):
+
+```
+GEOIP,private,DIRECT
+PROCESS-NAME,Discord.exe,PROXY
+DOMAIN,myip.com,PROXY
+DOMAIN,api.ipify.org,PROXY
+GEOSITE,youtube,PROXY
+GEOSITE,google,PROXY
+GEOSITE,telegram,PROXY
+GEOSITE,twitter,PROXY
+GEOSITE,openai,PROXY
+```
+
+### Global Extend Config (Изменить файл):
+
+```yaml
+profile:
+  store-selected: true
+
+rules:
+  - MATCH,DIRECT
+
+find-process-mode: always
+```
+
+### Итоговый порядок правил на странице "Правила":
+
+```
+1. GEOIP,private → DIRECT        (локальная сеть)
+2. PROCESS-NAME,Discord.exe → PROXY
+3. DOMAIN,myip.com → PROXY
+4. DOMAIN,api.ipify.org → PROXY
+5. GEOSITE,youtube → PROXY
+6. GEOSITE,google → PROXY
+7. GEOSITE,telegram → PROXY
+8. GEOSITE,twitter → PROXY
+9. GEOSITE,openai → PROXY
+...правила из подписки...
+N. MATCH → DIRECT                (всё остальное напрямую)
 ```
 
 ---
 
-## 8. Важные замечания
+## 12. Страницы интерфейса
 
-**После любого изменения Merge конфига** → нажми disable затем enable (или кнопку 🔥) на странице Профили. Без этого изменения не применятся.
+### Главная
+Основные переключатели: System Proxy, TUN Mode, статистика трафика.
 
-**Название прокси-группы** должно совпадать **точно** с тем, что в подписке, включая эмодзи. Проверяй на странице Прокси.
+### Прокси
+Список прокси-групп и серверов. Здесь выбирается активный узел. Кнопка тест задержки — иконка ⚡.
 
-**`prepend-rule-providers` и `append-rule-providers`** были убраны в версии v1.6.2. Вместо них используется просто `rule-providers` (работает как append).
+### Профили
+Управление подписками. Кнопки **Импорт** и **Новый** в верхнем углу.  
+Контекстное меню (правая кнопка):
+- **Редактировать правила** — добавить кастомные правила ✅
+- **Редактировать прокси** — добавить прокси вручную
+- **Редактировать группы прокси** — изменить группы
+- **Изменить Merge** — (устарело в v2.x, используй Edit Rules)
+- **Обновить** — обновить подписку с сервера
 
-**`rules: - MATCH,DIRECT`** переопределяет только секцию `rules` целиком. Если в подписке был `MATCH,Proxy` — он заменится на `MATCH,DIRECT`.
+### Соединения
+Live-мониторинг всех активных соединений. Показывает какое правило сработало, какой процесс, куда идёт трафик. Очень полезно для отладки.
 
-**PROCESS-NAME работает только в TUN-режиме.** В System Proxy трафик перехватывается на уровне HTTP/SOCKS — процессы не различаются.
+### Правила
+Полный список активных правил в порядке приоритета. Если правила не применились — проверяй здесь.
 
-**GEOSITE и GEOIP** используют файлы геоданных из `MetaCubeX/meta-rules-dat`. Обновляются автоматически. Если правило не срабатывает — проверь что файлы скачались (Настройки → Обновить геоданные).
+### Логи
+Логи ядра Mihomo. Если что-то не работает — смотри сюда.
+
+### Настройки
+- **Система** — Service Mode, автозапуск
+- **Clash** — порты, режим, loglevel, find-process-mode
+- **Верге** — тема, язык, горячие клавиши
+- **Обновить GeoData** — скачать актуальные базы GEOIP/GEOSITE
 
 ---
 
-*Источники: [clashvergerev.com/en/guide/merge](https://clashvergerev.com/en/guide/merge) · [wiki.metacubex.one/en/config/rules](https://wiki.metacubex.one/en/config/rules/) · [github.com/clash-verge-rev/clash-verge-rev](https://github.com/clash-verge-rev/clash-verge-rev)*
+## 13. Частые вопросы
+
+**Q: Добавил правила, но они не появляются на странице "Правила"**  
+A: Проверь что подписка активна (синяя карточка). Правила добавляются только к активному профилю.
+
+**Q: PROCESS-NAME не работает**  
+A: Нужны два условия: TUN-режим включён + `find-process-mode: always` в Global Extend Config.
+
+**Q: После обновления подписки мои правила исчезли**  
+A: Правила добавленные через "Редактировать правила" хранятся локально и **не сбрасываются** при обновлении подписки — это одно из главных преимуществ этого метода.
+
+**Q: Что ставить в "Политику прокси" — PROXY или что-то другое?**  
+A: Точное название группы из твоей подписки. Смотри на странице **Прокси** — как называется первая группа. Если там написано `PROXY` — ставь `PROXY`, если `🚀 Узел выбора` — ставь именно это.
+
+**Q: Как проверить что трафик идёт правильно?**  
+A: Страница **Соединения** — там в реальном времени видно каждое соединение, какое правило сработало и куда идёт трафик.
+
+**Q: Как обновить базы GEOIP/GEOSITE?**  
+A: **Настройки** → кнопка **Обновить GeoData**. После обновления перезапусти приложение.
+
+**Q: TUN-режим не включается**  
+A: Установи Service Mode: **Настройки → Система → Service Mode → Установить**. Или запусти приложение от имени администратора.
+
+---
+
+## Ссылки
+
+- GitHub репозиторий: https://github.com/clash-verge-rev/clash-verge-rev
+- Документация Mihomo (правила): https://wiki.metacubex.one/en/config/rules/
+- Списки GEOSITE/GEOIP: https://github.com/MetaCubeX/meta-rules-dat
+- Обсуждения (Q&A): https://github.com/clash-verge-rev/clash-verge-rev/discussions
+
+---
+
+*Гайд основан на официальном репозитории clash-verge-rev и документации Mihomo. Актуально для v2.4.7, апрель 2026.*
