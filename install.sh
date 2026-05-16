@@ -508,6 +508,22 @@ install_aliases() {
 # ---------------------------
 # Panels
 # ---------------------------
+install_docker() {
+  if has_cmd docker; then
+    say "Docker is already installed: $(docker --version)"
+    confirm "Re-install anyway?" || return 0
+  fi
+  warn "This will download and execute the official Docker install script as root:"
+  say "  https://get.docker.com"
+  confirm "Continue?" || return 0
+  say "Installing Docker..."
+  require_internet_or_warn
+  log_action "install_docker START"
+  curl -fsSL https://get.docker.com | sh
+  log_action "install_docker END"
+  say "Docker installed: $(docker --version 2>/dev/null || echo 'unknown')"
+}
+
 install_1panel() {
   warn "This will download and execute an external installer script as root:"
   say "  https://resource.1panel.pro/v2/quick_start.sh"
@@ -883,17 +899,18 @@ main_menu() {
     echo
 
     _menu_section "Panels"
-    _menu_item "11" "Install 1Panel"          "web-based server management panel"
+    _menu_item "11" "Install Docker"          "official get.docker.com installer"
+    _menu_item "12" "Install 1Panel"          "web-based server management panel"
     echo
 
     _menu_section "Extras"
-    _menu_item "12" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
-    _menu_item "13" "APT cleanup"             "autoremove + clean apt cache"
-    _menu_item "14" "Show action log"         "last 20 entries from bootstrap log"
+    _menu_item "13" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
+    _menu_item "14" "APT cleanup"             "autoremove + clean apt cache"
+    _menu_item "15" "Show action log"         "last 20 entries from bootstrap log"
     echo
 
     _menu_section "Scripts"
-    _menu_item "15" "Scripts submenu"         "run utility scripts (DNS, BBR...)"
+    _menu_item "16" "Scripts submenu"         "run utility scripts (DNS, BBR...)"
     echo
 
     _sep
@@ -912,11 +929,12 @@ main_menu() {
        8) ssh_change_port; pause ;;
        9) ufw_menu ;;
       10) fail2ban_menu ;;
-      11) install_1panel; pause ;;
-      12) install_aliases; pause ;;
-      13) cleanup_apt; pause ;;
-      14) show_log; pause ;;
-      15) scripts_menu ;;
+      11) install_docker; pause ;;
+      12) install_1panel; pause ;;
+      13) install_aliases; pause ;;
+      14) cleanup_apt; pause ;;
+      15) show_log; pause ;;
+      16) scripts_menu ;;
        0) exit 0 ;;
        *) warn "Invalid choice."; pause ;;
     esac
