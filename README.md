@@ -19,11 +19,16 @@
 
 - 📦 Обновляет пакеты и устанавливает базовый набор утилит
 - 🔄 Настраивает автоматические security-обновления
+- 👤 Создаёт sudo-пользователя с SSH-ключом
+- 💾 Настраивает swap-файл с persist в fstab
 - 🛡️ Управляет UFW и Fail2ban через интерактивные подменю
-- 🔑 Меняет порт SSH из меню с защитой от ошибок и автоматическим правилом UFW
-- 🖥️ Устанавливает кастомный MOTD с системной информацией
+- 🔑 Подменю SSH: смена порта, отключение парольной аутентификации, ограничение root-входа
+- 🔒 Хардение ядра через sysctl: защита от SYN-флуда, IP-спуфинга, ICMP-редиректов
+- 🐳 Устанавливает Docker через официальный скрипт
+- 🖥️ Устанавливает кастомный MOTD с системной информацией и запущенными контейнерами
 - 🗂️ Запускает утилиты из папки `scripts/` через отдельное подменю
 - 🌐 Устанавливает 1Panel через встроенный установщик
+- ⏰ Настраивает cron для автоматической перезагрузки при обновлении ядра
 - ⚡ Добавляет полезные алиасы в `.bashrc`
 - 🧹 Очищает APT-кэш и удаляет неиспользуемые пакеты
 - 📝 Логирует все действия и создаёт резервные копии
@@ -75,27 +80,32 @@ bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/hea
     2)  Update / upgrade only    apt-get update && upgrade
     3)  Install base packages    curl, git, htop, btop, jq, ufw...
     4)  Enable auto-updates      unattended-upgrades
+    5)  Create sudo user         add non-root user with sudo + SSH key
+    6)  Setup swap               create /swapfile + persist in fstab
 
   MOTD & SSH
-    5)  Install custom MOTD      disable default + install 99-mrcerber
-    6)  Restore default MOTD     re-enable system MOTD scripts
-    7)  Preview MOTD             run-parts /etc/update-motd.d
-    8)  Change SSH port          update Port in sshd_config
+    7)  Install custom MOTD      disable default + install 99-mrcerber
+    8)  Restore default MOTD     re-enable system MOTD scripts
+    9)  Preview MOTD             run-parts /etc/update-motd.d
+   10)  SSH submenu              port, password auth, root login hardening
 
   Security
-    9)  UFW submenu              firewall rules & management
-   10)  Fail2ban submenu         SSH brute-force protection
+   11)  UFW submenu              firewall rules & management
+   12)  Fail2ban submenu         SSH brute-force protection
+   13)  Kernel hardening         sysctl: SYN cookies, anti-spoof, redirects
 
   Panels
-   11)  Install 1Panel           web-based server management panel
+   14)  Install Docker           official get.docker.com installer
+   15)  Install 1Panel           web-based server management panel
 
   Extras
-   12)  Install aliases          bench, geoip  ->  /root/.bashrc
-   13)  APT cleanup              autoremove + clean apt cache
-   14)  Show action log          last 20 entries from bootstrap log
+   16)  Install aliases          bench, geoip  ->  /root/.bashrc
+   17)  APT cleanup              autoremove + clean apt cache
+   18)  Auto-reboot cron         install/manage Cron/Restart.sh
+   19)  Show action log          last 20 entries from bootstrap log
 
   Scripts
-   15)  Scripts submenu          run utility scripts (DNS, BBR...)
+   20)  Scripts submenu          run utility scripts (DNS, BBR...)
 
     0)  Exit
 ```
@@ -129,6 +139,32 @@ unattended-upgrades          apt-listchanges          openssh-server
 </details>
 
 <details>
+<summary><b>👤 Create sudo user</b></summary>
+<br>
+
+Создаёт нового пользователя с правами sudo — для работы без прямого входа под root.
+
+1. Запрашивает имя пользователя и создаёт его через `adduser`
+2. Добавляет в группу `sudo`
+3. Опционально устанавливает SSH-публичный ключ в `~/.ssh/authorized_keys`
+
+</details>
+
+<details>
+<summary><b>💾 Setup swap</b></summary>
+<br>
+
+Настраивает swap-файл — полезно для VPS с небольшим объёмом RAM (1–2 ГБ).
+
+1. Проверяет, не настроен ли swap уже (с предложением заменить)
+2. Запрашивает размер файла (например: `1G`, `2G`, `512M`)
+3. Создаёт `/swapfile` через `fallocate` (fallback на `dd`)
+4. Прописывает в `/etc/fstab` для автомонтирования при перезагрузке
+5. Устанавливает `vm.swappiness=10` и `vm.vfs_cache_pressure=50` через sysctl
+
+</details>
+
+<details>
 <summary><b>🖥️ Кастомный MOTD</b></summary>
 <br>
 
@@ -154,23 +190,59 @@ unattended-upgrades          apt-listchanges          openssh-server
 
   Services
   ────────────────────────────────────────────────────
-    docker: ○ inactive   fail2ban: ● active   ufw: ● active
+    docker: ● active   fail2ban: ● active   ufw: ● active
+
+  Containers
+  ────────────────────────────────────────────────────
+    nginx-proxy          Up 2 days             nginx:latest
+    app                  Up 5 hours            myapp:v1.2
 
   Updates
   ────────────────────────────────────────────────────
     Status        System is up to date
 ```
 
+Секция **Containers** отображается только если Docker установлен и запущен.
 Файлы `99-mrcerber` и `logo.txt` берутся из папки рядом со скриптом.
 Если не найдены — скачиваются автоматически с GitHub.
 
 </details>
 
 <details>
-<summary><b>🔑 Смена порта SSH</b></summary>
+<summary><b>🔑 SSH submenu — хардение SSH</b></summary>
 <br>
 
-Изменяет порт SSH в `/etc/ssh/sshd_config` с автоматическим бэкапом. Перед перезагрузкой сервиса проверяет конфигурацию командой `sshd -t` — при ошибке автоматически восстанавливает бэкап. Если UFW активен, правило для нового порта добавляется автоматически.
+| Пункт | Действие |
+|---|---|
+| Status | показать текущие настройки sshd_config (порт, auth, root login) |
+| Disable password auth | `PasswordAuthentication no` — только ключи |
+| Restrict root login | `PermitRootLogin prohibit-password` — root только по ключу |
+| Change SSH port | сменить порт в sshd_config |
+
+Все операции делают бэкап файла, проверяют конфиг через `sshd -t` перед перезагрузкой и автоматически восстанавливают бэкап при ошибке.
+
+> [!WARNING]
+> Отключение парольной аутентификации заблокирует SSH-вход по паролю. Убедитесь, что SSH-ключ установлен перед применением.
+
+</details>
+
+<details>
+<summary><b>🔒 Kernel hardening — хардение ядра</b></summary>
+<br>
+
+Записывает параметры безопасности в `/etc/sysctl.d/99-mrcerber-hardening.conf` и применяет через `sysctl --system`.
+
+| Параметр | Назначение |
+|---|---|
+| `tcp_syncookies = 1` | Защита от SYN-флуда |
+| `accept_source_route = 0` | Запрет IP source routing |
+| `accept_redirects = 0` | Запрет входящих ICMP-редиректов |
+| `send_redirects = 0` | Запрет исходящих ICMP-редиректов |
+| `rp_filter = 1` | Reverse path filtering (защита от IP-спуфинга) |
+| `log_martians = 1` | Логирование подозрительных пакетов |
+| `ipv6 forwarding = 0` | Отключение IPv6-форвардинга |
+
+Операция идемпотентна: повторный запуск покажет предупреждение и запросит подтверждение перезаписи.
 
 </details>
 
@@ -232,12 +304,27 @@ maxretry = 5
 </details>
 
 <details>
-<summary><b>🌐 Panels — 1Panel</b></summary>
+<summary><b>🐳 Panels — Docker и 1Panel</b></summary>
 <br>
 
-**1Panel** — современная веб-панель управления сервером с поддержкой Docker, сайтов, баз данных и мониторинга.
+**Docker** — устанавливается через официальный скрипт `get.docker.com`. Перед запуском показывает URL источника и запрашивает подтверждение. Если Docker уже установлен — предлагает переустановку.
 
-Перед запуском установщик показывает URL источника и запрашивает подтверждение.
+**1Panel** — современная веб-панель управления сервером с поддержкой Docker, сайтов, баз данных и мониторинга. Устанавливается через официальный инсталлятор.
+
+</details>
+
+<details>
+<summary><b>⏰ Auto-reboot cron</b></summary>
+<br>
+
+Устанавливает скрипт `Cron/Restart.sh` как cron-задачу для автоматической перезагрузки при наличии ожидающих обновлений ядра.
+
+- Скрипт копируется в `/usr/local/sbin/mrcerber-auto-reboot.sh`
+- Cron-файл создаётся в `/etc/cron.d/mrcerber-auto-reboot` (запуск каждый час)
+- Лог пишется в `/var/log/mrcerber-auto-reboot.log`
+- Перезагружает только при наличии файла `/var/run/reboot-required`
+
+Через тот же пункт меню можно отключить cron или переустановить.
 
 </details>
 
@@ -323,6 +410,14 @@ source ~/.bashrc
 [2025-01-06 12:05:11] disable_last_login
 [2025-01-06 12:05:30] ufw allow 22/tcp
 [2025-01-06 12:05:35] ufw enable
+[2025-01-06 12:06:00] create_sudo_user deploy
+[2025-01-06 12:06:01] ssh key added for deploy
+[2025-01-06 12:06:30] setup_swap 2G
+[2025-01-06 12:07:00] apply_sysctl_hardening
+[2025-01-06 12:07:05] ssh_disable_password_auth
+[2025-01-06 12:07:10] install_docker START
+[2025-01-06 12:08:45] install_docker END
+[2025-01-06 12:09:00] setup_auto_reboot_cron ENABLED
 ```
 
 </details>
@@ -337,6 +432,8 @@ Server-Tools/
 ├── 99-mrcerber       # Скрипт кастомного MOTD
 ├── logo.txt          # ASCII-арт логотип для MOTD
 ├── README.md         # Документация
+├── Cron/
+│   └── Restart.sh    # Скрипт автоматической перезагрузки (cron)
 └── scripts/
     ├── cf_dns_manager.sh   # Менеджер DNS-записей Cloudflare
     ├── enable_bbr.sh       # Включение TCP BBR
