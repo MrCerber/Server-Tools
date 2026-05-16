@@ -20,9 +20,10 @@
 - 📦 Обновляет пакеты и устанавливает базовый набор утилит
 - 🔄 Настраивает автоматические security-обновления
 - 🛡️ Управляет UFW и Fail2ban через интерактивные подменю
-- 🔑 Меняет порт SSH из меню с защитой от ошибок
+- 🔑 Меняет порт SSH из меню с защитой от ошибок и автоматическим правилом UFW
 - 🖥️ Устанавливает кастомный MOTD с системной информацией
-- 🗂️ Устанавливает 1Panel или 3x-ui через встроенные установщики
+- 🗂️ Запускает утилиты из папки `scripts/` через отдельное подменю
+- 🌐 Устанавливает 1Panel через встроенный установщик
 - ⚡ Добавляет полезные алиасы в `.bashrc`
 - 🧹 Очищает APT-кэш и удаляет неиспользуемые пакеты
 - 📝 Логирует все действия и создаёт резервные копии
@@ -32,7 +33,7 @@
 ## Быстрый старт
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/heads/main/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/heads/v2/install.sh)
 ```
 
 > [!IMPORTANT]
@@ -87,12 +88,14 @@ bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/hea
 
   Panels
    11)  Install 1Panel           web-based server management panel
-   12)  Install 3x-ui            Xray-based proxy management panel
 
   Extras
-   13)  Install aliases          bench, geoip  ->  /root/.bashrc
-   14)  APT cleanup              autoremove + clean apt cache
-   15)  Show action log          last 20 entries from bootstrap log
+   12)  Install aliases          bench, geoip  ->  /root/.bashrc
+   13)  APT cleanup              autoremove + clean apt cache
+   14)  Show action log          last 20 entries from bootstrap log
+
+  Scripts
+   15)  Scripts submenu          run utility scripts (DNS, BBR...)
 
     0)  Exit
 ```
@@ -167,10 +170,7 @@ unattended-upgrades          apt-listchanges          openssh-server
 <summary><b>🔑 Смена порта SSH</b></summary>
 <br>
 
-Изменяет порт SSH в `/etc/ssh/sshd_config` с автоматическим бэкапом и перезагрузкой сервиса.
-
-> [!WARNING]
-> Сначала открой новый порт в UFW (`9)  UFW submenu → Allow custom port`), только потом меняй порт SSH — иначе потеряешь доступ к серверу.
+Изменяет порт SSH в `/etc/ssh/sshd_config` с автоматическим бэкапом. Перед перезагрузкой сервиса проверяет конфигурацию командой `sshd -t` — при ошибке автоматически восстанавливает бэкап. Если UFW активен, правило для нового порта добавляется автоматически.
 
 </details>
 
@@ -185,6 +185,7 @@ unattended-upgrades          apt-listchanges          openssh-server
 | Allow SSH | открыть `22/tcp` |
 | Allow HTTP+HTTPS | открыть `80` + `443` |
 | Allow custom port | ввести порт и протокол (tcp / udp / both) |
+| Allow from IP/CIDR | открыть порт только для конкретного IP или подсети |
 | Delete rule | удалить правило по номеру |
 | Enable / Disable | включить / выключить UFW |
 | Reset | сбросить все правила *(с подтверждением)* |
@@ -202,20 +203,56 @@ unattended-upgrades          apt-listchanges          openssh-server
 | Status | статус сервиса + sshd jail |
 | Unban IP | разбанить IP из sshd jail |
 
-Конфигурация `jail.local` по умолчанию:
+Конфигурация `jail.local` — VPS-уровень защиты:
 
 ```ini
 [DEFAULT]
-bantime  = 1h
-findtime = 10m
-maxretry = 5
-backend  = systemd
-banaction = ufw
+# Прогрессивные баны: каждый повтор × 24
+bantime.increment  = true
+bantime.multiplier = 24
+bantime.maxtime    = 720h    ; максимум 30 дней
+bantime            = 1h      ; первый бан
+findtime           = 10m
+maxretry           = 3
+backend            = systemd
+banaction          = ufw
+ignoreip           = 127.0.0.1/8 ::1
 
 [sshd]
 enabled = true
-mode    = normal
+mode    = aggressive         ; ловит pre-auth флуд
+
+[recidive]
+enabled  = true
+bantime  = 720h              ; 30 дней для рецидивистов
+findtime = 1d
+maxretry = 5
 ```
+
+</details>
+
+<details>
+<summary><b>🌐 Panels — 1Panel</b></summary>
+<br>
+
+**1Panel** — современная веб-панель управления сервером с поддержкой Docker, сайтов, баз данных и мониторинга.
+
+Перед запуском установщик показывает URL источника и запрашивает подтверждение.
+
+</details>
+
+<details>
+<summary><b>⚡ Scripts — утилиты</b></summary>
+<br>
+
+Подменю запускает скрипты из папки `scripts/` рядом со скриптом.
+
+| Скрипт | Описание |
+|---|---|
+| **Cloudflare DNS Manager** | Интерактивный менеджер A-записей Cloudflare (просмотр, добавление, редактирование, удаление) |
+| **Enable BBR** | Включает TCP BBR + fq на уровне ядра для оптимизации пропускной способности |
+
+Скрипты также можно запустить напрямую из папки `scripts/`. Подробности — в [`scripts/README.md`](scripts/README.md).
 
 </details>
 
@@ -229,29 +266,6 @@ mode    = normal
 2. `apt-get clean` — очищает кэш загруженных пакетов
 
 Выводит размер кэша до и после очистки.
-
-</details>
-
-<details>
-<summary><b>🗂️ Panels — 1Panel и 3x-ui</b></summary>
-<br>
-
-**1Panel** — современная веб-панель управления сервером с поддержкой Docker, сайтов, баз данных и мониторинга.
-
-```bash
-bash -c "$(curl -sSL https://resource.1panel.pro/v2/quick_start.sh)"
-```
-
-**3x-ui** — веб-панель управления Xray-core для настройки прокси-протоколов (VLESS, VMess, Trojan и др.).
-
-```bash
-bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
-```
-
-Оба установщика:
-- Запускаются с проверкой интернет-соединения
-- Логируют начало и конец установки
-- Полностью интерактивны — следуй инструкциям установщика
 
 </details>
 
@@ -289,6 +303,9 @@ source ~/.bashrc
 | **Проверка OS** | Предупреждение при запуске не на Ubuntu / Debian |
 | **Проверка сети** | Ping-тест перед загрузкой файлов |
 | **Идемпотентность** | Большинство операций безопасно запускать повторно |
+| **Блокировка параллельного запуска** | `flock` предотвращает одновременный запуск двух копий скрипта |
+| **Валидация SSH-конфига** | `sshd -t` проверяет конфиг перед перезагрузкой; при ошибке бэкап восстанавливается автоматически |
+| **Таймаут загрузки** | `curl --max-time 30` предотвращает зависание при медленном соединении |
 
 <details>
 <summary><b>📄 Пример лога</b></summary>
@@ -319,7 +336,11 @@ Server-Tools/
 ├── install.sh        # Главный скрипт с интерактивным меню
 ├── 99-mrcerber       # Скрипт кастомного MOTD
 ├── logo.txt          # ASCII-арт логотип для MOTD
-└── README.md         # Документация
+├── README.md         # Документация
+└── scripts/
+    ├── cf_dns_manager.sh   # Менеджер DNS-записей Cloudflare
+    ├── enable_bbr.sh       # Включение TCP BBR
+    └── README.md           # Документация скриптов
 ```
 
 ---

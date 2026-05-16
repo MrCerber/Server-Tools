@@ -28,7 +28,19 @@ else
 fi
 CT=(-H "Content-Type: application/json")
 
-cf() { curl -s "${AUTH[@]}" "${CT[@]}" "$@"; }
+cf() {
+  local resp
+  if ! resp=$(curl -sf --max-time 30 "${AUTH[@]}" "${CT[@]}" "$@"); then
+    echo -e "${R}[!] API request failed (network error or timeout)${N}" >&2
+    return 1
+  fi
+  if jq -e '.success == false' <<< "$resp" >/dev/null 2>&1; then
+    echo -e "${R}[!] Cloudflare API error:${N}" >&2
+    jq -r '.errors[].message' <<< "$resp" >&2
+    return 1
+  fi
+  printf '%s' "$resp"
+}
 
 verify_auth() {
   local resp ok
@@ -157,10 +169,13 @@ choose_record() {
 }
 
 valid_ip() {
-  [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
-  IFS='.' read -ra parts <<< "$1"
+  local ip="$1"
+  [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
+  local IFS='.' parts
+  read -ra parts <<< "$ip"
   for p in "${parts[@]}"; do
-    [ "$p" -gt 255 ] && return 1
+    [[ "$p" =~ ^[0-9]+$ ]] || return 1
+    (( p <= 255 ))          || return 1
   done
   return 0
 }
@@ -173,6 +188,9 @@ opt_add() {
   read -rp "Subdomain (e.g. panel, mail, or @ for root): " sub
   if [ -z "$sub" ]; then
     echo -e "${R}Empty name${N}"; return
+  fi
+  if [ "$sub" != "@" ] && [[ ! "$sub" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    echo -e "${R}Invalid subdomain — only letters, numbers, hyphens, dots allowed${N}"; return
   fi
   local fullname
   if [ "$sub" = "@" ] || [ "$sub" = "$SEL_ZONE_NAME" ]; then

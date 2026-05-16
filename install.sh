@@ -26,9 +26,22 @@
 set -Eeuo pipefail
 
 # ---------------------------
+# Cleanup trap
+# ---------------------------
+_TMPDIR=""
+_cleanup() {
+  local rc=$?
+  [[ -n "$_TMPDIR" ]] && rm -rf "$_TMPDIR"
+  (( rc != 0 )) && printf "\n%bScript exited with error (code %d). Check %s%b\n" \
+    "$C_ERR" "$rc" "${LOG_FILE:-/root/.mrcerber-bootstrap.log}" "$R" >&2 || true
+}
+trap _cleanup EXIT
+
+# ---------------------------
 # Globals
 # ---------------------------
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+SCRIPTS_DIR="${SCRIPT_DIR}/scripts"
 CUSTOM_MOTD_99_SRC="${SCRIPT_DIR}/99-mrcerber"
 CUSTOM_MOTD_LOGO_SRC="${SCRIPT_DIR}/logo.txt"
 MOTD_BASE_URL="${MOTD_BASE_URL:-https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/heads/main}"
@@ -68,6 +81,8 @@ require_root() {
   if [[ "${EUID}" -ne 0 ]]; then
     die "This script must be run as root."
   fi
+  exec 9>/var/run/mrcerber-bootstrap.lock
+  flock -n 9 || die "Another instance of this script is already running."
 }
 
 has_cmd() { command -v "$1" >/dev/null 2>&1; }
@@ -282,6 +297,18 @@ EOF
 # ---------------------------
 # SSH tweaks (Last login)
 # ---------------------------
+_sshd_validate_and_reload() {
+  if ! sshd -t -f "${SSHD_CONFIG}" 2>/dev/null; then
+    warn "sshd config validation failed — restoring backup"
+    local latest_bak
+    latest_bak="$(ls -t "${BACKUP_DIR}"/*sshd_config* 2>/dev/null | head -1 || true)"
+    [[ -n "$latest_bak" ]] && cp "$latest_bak" "${SSHD_CONFIG}"
+    die "SSH config is invalid. Backup restored. No reload performed."
+  fi
+  systemctl reload ssh >/dev/null 2>&1 || systemctl reload sshd >/dev/null 2>&1 \
+    || warn "SSH reload failed — run: systemctl restart ssh"
+}
+
 sshd_set_printlastlog() {
   local value="$1"  # "yes" or "no"
   backup_file "${SSHD_CONFIG}"
@@ -292,7 +319,7 @@ sshd_set_printlastlog() {
     printf "\nPrintLastLog %s\n" "${value}" >> "${SSHD_CONFIG}"
   fi
 
-  systemctl reload ssh >/dev/null 2>&1 || systemctl reload sshd >/dev/null 2>&1 || true
+  _sshd_validate_and_reload
 }
 
 disable_last_login() {
@@ -314,7 +341,6 @@ ssh_change_port() {
   if ! [[ "$port" =~ ^[0-9]{1,5}$ ]] || (( port < 1 || port > 65535 )); then
     warn "Invalid port."; return 0
   fi
-  say "${C_WARN}Make sure UFW allows port ${port} before reconnecting!${R}"
   confirm "Change SSH port to ${port}?" || return 0
   backup_file "${SSHD_CONFIG}"
   if grep -qiE '^\s*Port\s+' "${SSHD_CONFIG}"; then
@@ -322,7 +348,11 @@ ssh_change_port() {
   else
     printf "\nPort %s\n" "${port}" >> "${SSHD_CONFIG}"
   fi
-  systemctl reload ssh >/dev/null 2>&1 || systemctl reload sshd >/dev/null 2>&1 || true
+  _sshd_validate_and_reload
+  if command -v ufw &>/dev/null && ufw status 2>/dev/null | grep -q "^Status: active"; then
+    ufw allow "${port}/tcp" comment "SSH" >/dev/null
+    say "UFW rule for port ${port}/tcp added automatically."
+  fi
   log_action "ssh_change_port ${port}"
   say "SSH port changed to ${port}. Reconnect on the new port."
 }
@@ -372,7 +402,6 @@ enable_default_motd_scripts() {
 install_custom_motd() {
   local motd_99_src="${CUSTOM_MOTD_99_SRC}"
   local motd_logo_src="${CUSTOM_MOTD_LOGO_SRC}"
-  local tmp_dir=""
 
   if [[ ! -f "${motd_99_src}" || ! -f "${motd_logo_src}" ]]; then
     require_internet_or_warn
@@ -380,22 +409,22 @@ install_custom_motd() {
       die "Missing custom files and neither curl nor wget is available."
     fi
     say "Custom MOTD files not found next to this script; downloading..."
-    tmp_dir="$(mktemp -d -t mrcerber-motd-XXXXXX)"
+    _TMPDIR="$(mktemp -d -t mrcerber-motd-XXXXXX)"
     if [[ ! -f "${motd_99_src}" ]]; then
       if has_cmd curl; then
-        curl -fsSL "${MOTD_BASE_URL}/99-mrcerber" -o "${tmp_dir}/99-mrcerber"
+        curl -fsSL --max-time 30 "${MOTD_BASE_URL}/99-mrcerber" -o "${_TMPDIR}/99-mrcerber"
       else
-        wget -qO "${tmp_dir}/99-mrcerber" "${MOTD_BASE_URL}/99-mrcerber"
+        wget -qO "${_TMPDIR}/99-mrcerber" "${MOTD_BASE_URL}/99-mrcerber"
       fi
-      motd_99_src="${tmp_dir}/99-mrcerber"
+      motd_99_src="${_TMPDIR}/99-mrcerber"
     fi
     if [[ ! -f "${motd_logo_src}" ]]; then
       if has_cmd curl; then
-        curl -fsSL "${MOTD_BASE_URL}/logo.txt" -o "${tmp_dir}/logo.txt"
+        curl -fsSL --max-time 30 "${MOTD_BASE_URL}/logo.txt" -o "${_TMPDIR}/logo.txt"
       else
-        wget -qO "${tmp_dir}/logo.txt" "${MOTD_BASE_URL}/logo.txt"
+        wget -qO "${_TMPDIR}/logo.txt" "${MOTD_BASE_URL}/logo.txt"
       fi
-      motd_logo_src="${tmp_dir}/logo.txt"
+      motd_logo_src="${_TMPDIR}/logo.txt"
     fi
   fi
 
@@ -414,10 +443,7 @@ install_custom_motd() {
   disable_last_login
 
   say "Custom MOTD installed."
-
-  if [[ -n "${tmp_dir}" ]]; then
-    rm -rf "${tmp_dir}"
-  fi
+  _TMPDIR=""
 }
 
 restore_default_motd() {
@@ -483,19 +509,14 @@ install_aliases() {
 # Panels
 # ---------------------------
 install_1panel() {
+  warn "This will download and execute an external installer script as root:"
+  say "  https://resource.1panel.pro/v2/quick_start.sh"
+  confirm "Continue?" || return 0
   say "Installing 1Panel..."
   require_internet_or_warn
   log_action "install_1panel START"
-  bash -c "$(curl -sSL https://resource.1panel.pro/v2/quick_start.sh)"
+  bash -c "$(curl -sSL --max-time 60 https://resource.1panel.pro/v2/quick_start.sh)"
   log_action "install_1panel END"
-}
-
-install_3xui() {
-  say "Installing 3x-ui..."
-  require_internet_or_warn
-  log_action "install_3xui START"
-  bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
-  log_action "install_3xui END"
 }
 
 cleanup_apt() {
@@ -556,6 +577,41 @@ ufw_allow_custom() {
   esac
 }
 
+ufw_allow_from_ip() {
+  local src_ip port proto
+  while true; do
+    read -r -p "Source IP or CIDR (e.g. 1.2.3.4 or 1.2.3.0/24): " src_ip
+    [[ -n "$src_ip" ]] || { warn "Cannot be empty."; continue; }
+    if [[ ! "$src_ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}(/([0-9]|[1-2][0-9]|3[0-2]))?$ ]]; then
+      warn "Invalid IP or CIDR format."; continue
+    fi
+    break
+  done
+  while true; do
+    read -r -p "Port to open (1-65535): " port
+    if [[ ! "$port" =~ ^[0-9]+$ ]] || (( port < 1 || port > 65535 )); then
+      warn "Invalid port number."; continue
+    fi
+    break
+  done
+  read -r -p "Protocol [tcp/udp/both] (default: tcp): " proto
+  proto="${proto:-tcp}"
+  case "${proto,,}" in
+    tcp|udp)
+      ufw allow from "$src_ip" to any port "$port" proto "${proto,,}"
+      log_action "ufw allow from ${src_ip} to any port ${port} proto ${proto,,}"
+      ;;
+    both)
+      ufw allow from "$src_ip" to any port "$port" proto tcp
+      ufw allow from "$src_ip" to any port "$port" proto udp
+      log_action "ufw allow from ${src_ip} to any port ${port} proto tcp+udp"
+      ;;
+    *)
+      warn "Invalid protocol. Use tcp, udp, or both."; return 0 ;;
+  esac
+  say "Rule added: allow from ${src_ip} to port ${port}/${proto}"
+}
+
 ufw_delete_rule() {
   say "Current rules:"
   ufw status numbered || true
@@ -588,29 +644,31 @@ ufw_menu() {
   while true; do
     clear
     _menu_header "UFW Firewall"
-    _menu_item "1" "Status"            "show current rules (verbose)"
-    _menu_item "2" "Apply defaults"    "deny incoming / allow outgoing"
-    _menu_item "3" "Allow SSH"         "open 22/tcp"
-    _menu_item "4" "Allow HTTP+HTTPS"  "open 80 + 443"
-    _menu_item "5" "Allow custom port" "specify port + protocol"
-    _menu_item "6" "Delete rule"       "remove rule by number"
-    _menu_item "7" "Enable UFW"        "activate firewall"
-    _menu_item "8" "Disable UFW"       "deactivate firewall"
-    _menu_item "9" "Reset UFW"         "!! removes all rules !!"
-    _menu_item "0" "Back"              ""
+    _menu_item "1"  "Status"              "show current rules (verbose)"
+    _menu_item "2"  "Apply defaults"      "deny incoming / allow outgoing"
+    _menu_item "3"  "Allow SSH"           "open 22/tcp"
+    _menu_item "4"  "Allow HTTP+HTTPS"    "open 80 + 443"
+    _menu_item "5"  "Allow custom port"   "specify port + protocol"
+    _menu_item "6"  "Allow from IP/CIDR"  "open port for a specific source IP"
+    _menu_item "7"  "Delete rule"         "remove rule by number"
+    _menu_item "8"  "Enable UFW"          "activate firewall"
+    _menu_item "9"  "Disable UFW"         "deactivate firewall"
+    _menu_item "10" "Reset UFW"           "!! removes all rules !!"
+    _menu_item "0"  "Back"                ""
     read -r -p "  Select: " c
     case "$c" in
-      1) ufw_status; pause ;;
-      2) ufw_basic_hardening; pause ;;
-      3) ufw_allow_ssh; pause ;;
-      4) ufw_allow_http_https; pause ;;
-      5) ufw_allow_custom; pause ;;
-      6) ufw_delete_rule; pause ;;
-      7) ufw_enable; pause ;;
-      8) ufw_disable; pause ;;
-      9) ufw_reset; pause ;;
-      0) break ;;
-      *) warn "Invalid choice."; pause ;;
+       1) ufw_status; pause ;;
+       2) ufw_basic_hardening; pause ;;
+       3) ufw_allow_ssh; pause ;;
+       4) ufw_allow_http_https; pause ;;
+       5) ufw_allow_custom; pause ;;
+       6) ufw_allow_from_ip; pause ;;
+       7) ufw_delete_rule; pause ;;
+       8) ufw_enable; pause ;;
+       9) ufw_disable; pause ;;
+      10) ufw_reset; pause ;;
+       0) break ;;
+       *) warn "Invalid choice."; pause ;;
     esac
   done
 }
@@ -627,7 +685,7 @@ fail2ban_install_enable() {
 }
 
 fail2ban_write_jail_local() {
-  say "Writing /etc/fail2ban/jail.local (SSH protection)..."
+  say "Writing /etc/fail2ban/jail.local (VPS SSH protection)..."
   if [[ ! -d /etc/fail2ban ]]; then
     warn "Fail2ban not installed. Use 'Install + enable Fail2ban' first."
     return 0
@@ -637,22 +695,38 @@ fail2ban_write_jail_local() {
 
   cat > /etc/fail2ban/jail.local <<'EOF'
 [DEFAULT]
-bantime  = 1h
-findtime = 10m
-maxretry = 5
-
-backend = systemd
-banaction = ufw
+# Progressive banning: each repeat offence multiplies the ban duration (24x per offence)
+bantime.increment  = true
+bantime.multiplier = 24
+bantime.maxtime    = 720h
+bantime            = 1h
+findtime           = 10m
+maxretry           = 3
+backend            = systemd
+banaction          = ufw
+ignoreip           = 127.0.0.1/8 ::1
 
 [sshd]
-enabled  = true
-mode     = normal
-port     = ssh
-logpath  = %(sshd_log)s
+enabled = true
+# aggressive mode catches pre-authentication floods in addition to auth failures
+mode    = aggressive
+port    = ssh
+logpath = %(syslog_authpriv)s
+
+[recidive]
+# IPs that get banned multiple times receive a 30-day block
+enabled   = true
+logpath   = /var/log/fail2ban.log
+banaction = ufw
+bantime   = 720h
+findtime  = 1d
+maxretry  = 5
 EOF
 
   if ! systemctl restart fail2ban >/dev/null 2>&1; then
     warn "Fail2ban restart failed. Ensure it is installed and enabled."
+  else
+    say "Fail2ban restarted with new config."
   fi
   say "jail.local written."
 }
@@ -668,6 +742,9 @@ fail2ban_status() {
 fail2ban_unban_ip() {
   read -r -p "Enter IP to unban: " ip
   [[ -n "$ip" ]] || { warn "IP cannot be empty."; return 0; }
+  if [[ ! "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+    warn "Invalid IP address format."; return 0
+  fi
   log_action "fail2ban unban ${ip}"
   fail2ban-client set sshd unbanip "$ip" || true
 }
@@ -687,6 +764,36 @@ fail2ban_menu() {
       2) fail2ban_write_jail_local; pause ;;
       3) fail2ban_status; pause ;;
       4) fail2ban_unban_ip; pause ;;
+      0) break ;;
+      *) warn "Invalid choice."; pause ;;
+    esac
+  done
+}
+
+# ---------------------------
+# Scripts submenu
+# ---------------------------
+run_script() {
+  local name="$1"
+  local path="${SCRIPTS_DIR}/${name}"
+  if [[ ! -f "$path" ]]; then
+    warn "Script not found: ${path}"
+    return 0
+  fi
+  bash "$path"
+}
+
+scripts_menu() {
+  while true; do
+    clear
+    _menu_header "Scripts"
+    _menu_item "1" "Cloudflare DNS Manager"  "manage DNS A-records via Cloudflare API"
+    _menu_item "2" "Enable BBR"              "TCP BBR congestion control + fq scheduler"
+    _menu_item "0" "Back"                    ""
+    read -r -p "  Select: " c
+    case "$c" in
+      1) run_script "cf_dns_manager.sh" ;;
+      2) run_script "enable_bbr.sh"; pause ;;
       0) break ;;
       *) warn "Invalid choice."; pause ;;
     esac
@@ -760,13 +867,16 @@ main_menu() {
 
     _menu_section "Panels"
     _menu_item "11" "Install 1Panel"          "web-based server management panel"
-    _menu_item "12" "Install 3x-ui"           "Xray-based proxy management panel"
     echo
 
     _menu_section "Extras"
-    _menu_item "13" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
-    _menu_item "14" "APT cleanup"             "autoremove + clean apt cache"
-    _menu_item "15" "Show action log"         "last 20 entries from bootstrap log"
+    _menu_item "12" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
+    _menu_item "13" "APT cleanup"             "autoremove + clean apt cache"
+    _menu_item "14" "Show action log"         "last 20 entries from bootstrap log"
+    echo
+
+    _menu_section "Scripts"
+    _menu_item "15" "Scripts submenu"         "run utility scripts (DNS, BBR...)"
     echo
 
     _sep
@@ -786,10 +896,10 @@ main_menu() {
        9) ufw_menu ;;
       10) fail2ban_menu ;;
       11) install_1panel; pause ;;
-      12) install_3xui; pause ;;
-      13) install_aliases; pause ;;
-      14) cleanup_apt; pause ;;
-      15) show_log; pause ;;
+      12) install_aliases; pause ;;
+      13) cleanup_apt; pause ;;
+      14) show_log; pause ;;
+      15) scripts_menu ;;
        0) exit 0 ;;
        *) warn "Invalid choice."; pause ;;
     esac
