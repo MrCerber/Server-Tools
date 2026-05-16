@@ -29,13 +29,13 @@ LABEL_W=12
 BAR_FULL="$(printf '\xE2\x96\x88')" # █
 BAR_EMPTY="$(printf '\xE2\x96\x91')" # ░
 SVC_OK="$(printf '\xE2\x97\x8F')"   # ●
-SVC_BAD="$(printf '\xE2\x97\x8F')"  # ●
+SVC_BAD="$(printf '\xE2\x97\x8B')"  # ○
 SVC_NI="$(printf '\xE2\x97\x8B')"   # ○
 if [[ "${MOTD_ASCII:-0}" == "1" ]]; then
   BAR_FULL="#"
   BAR_EMPTY="."
   SVC_OK="*"
-  SVC_BAD="*"
+  SVC_BAD="o"
   SVC_NI="o"
 fi
 
@@ -99,7 +99,7 @@ HOST=$(hostname)
 IP=$(hostname -I | awk '{print $1}')
 OS=$(awk -F= '/^PRETTY_NAME=/{gsub(/"/,"",$2); print $2}' /etc/os-release 2>/dev/null)
 KERNEL=$(uname -r)
-UPTIME=$(uptime -p)
+UPTIME=$(uptime -p 2>/dev/null || uptime | awk -F'up ' '{print $2}' | cut -d',' -f1,2 | sed 's/^ //;s/ *$//')
 
 # CPU (fast + VPS-safe cores calculation)
 CPU_MODEL=$(awk -F: '/model name/ {gsub(/^[ \t]+/,"",$2); print $2; exit}' /proc/cpuinfo 2>/dev/null)
@@ -125,8 +125,8 @@ LOAD_NORM=$(awk -v l="$LOAD1" -v c="$CPU_THREADS" 'BEGIN{printf "%.2f", (c>0? l/
 LOAD_PCT=$(awk -v n="$LOAD_NORM" 'BEGIN{p=n*100; if(p<0)p=0; printf "%.0f", p}')
 
 # Memory
-MEM_USED=$(free -h | awk '/Mem:/ {print $3}')
-MEM_TOTAL=$(free -h | awk '/Mem:/ {print $2}')
+MEM_USED=$(free -h 2>/dev/null | awk '/Mem:/ {print $3}') || MEM_USED="N/A"
+MEM_TOTAL=$(free -h 2>/dev/null | awk '/Mem:/ {print $2}') || MEM_TOTAL="N/A"
 
 # Last login (fast)
 LAST_LOGIN=$(
