@@ -777,10 +777,27 @@ run_script() {
   local name="$1"
   local path="${SCRIPTS_DIR}/${name}"
   if [[ ! -f "$path" ]]; then
-    warn "Script not found: ${path}"
-    return 0
+    require_internet_or_warn
+    if ! has_cmd curl && ! has_cmd wget; then
+      warn "Script not found locally and neither curl nor wget is available."
+      return 0
+    fi
+    say "Script not found locally; downloading from GitHub..."
+    _TMPDIR="$(mktemp -d -t mrcerber-scripts-XXXXXX)"
+    if has_cmd curl; then
+      if ! curl -fsSL --max-time 30 "${MOTD_BASE_URL}/scripts/${name}" \
+           -o "${_TMPDIR}/${name}"; then
+        warn "Failed to download ${name}."; _TMPDIR=""; return 0
+      fi
+    else
+      if ! wget -qO "${_TMPDIR}/${name}" "${MOTD_BASE_URL}/scripts/${name}"; then
+        warn "Failed to download ${name}."; _TMPDIR=""; return 0
+      fi
+    fi
+    path="${_TMPDIR}/${name}"
   fi
   bash "$path"
+  _TMPDIR=""
 }
 
 scripts_menu() {

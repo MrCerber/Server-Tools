@@ -2,12 +2,10 @@
 
 set -u
 
-# Use Email with Global API Key 
-# Or Use DNS Zone API Token
 CF_EMAIL=""
-CF_API_KEY="" # Global API Key
-#OR
+CF_API_KEY=""
 CF_API_TOKEN=""
+CF_CONFIG="${HOME}/.mrcerber-cf.conf"
 
 API="https://api.cloudflare.com/client/v4"
 
@@ -16,6 +14,50 @@ G='\033[0;32m'; R='\033[0;31m'; Y='\033[1;33m'; B='\033[1;34m'; C='\033[0;36m'; 
 command -v jq >/dev/null 2>&1 || { echo -e "${R}[!] jq missing. Install: apt install jq -y${N}"; exit 1; }
 command -v curl >/dev/null 2>&1 || { echo -e "${R}[!] curl missing${N}"; exit 1; }
 
+# Load saved credentials if config exists
+if [[ -f "$CF_CONFIG" ]]; then
+  # shellcheck source=/dev/null
+  source "$CF_CONFIG"
+fi
+
+prompt_credentials() {
+  echo -e "\n${Y}Cloudflare credentials required.${N}"
+  echo -e "  ${G}1${N}) API Token  ${C}(recommended — DNS zone token)${N}"
+  echo -e "  ${G}2${N}) Global API Key + Email"
+  local choice
+  read -rp "Auth method [1/2]: " choice
+  case "$choice" in
+    1)
+      read -rsp "API Token: " CF_API_TOKEN; echo
+      CF_EMAIL=""; CF_API_KEY=""
+      ;;
+    2)
+      read -rp  "Email: "          CF_EMAIL
+      read -rsp "Global API Key: " CF_API_KEY; echo
+      CF_API_TOKEN=""
+      ;;
+    *)
+      echo -e "${R}Invalid choice${N}"; exit 1 ;;
+  esac
+
+  local save
+  read -rp "Save to ${CF_CONFIG} for future use? (y/n): " save
+  if [[ "$save" =~ ^[yY]$ ]]; then
+    {
+      printf 'CF_API_TOKEN="%s"\n' "$CF_API_TOKEN"
+      printf 'CF_EMAIL="%s"\n'     "$CF_EMAIL"
+      printf 'CF_API_KEY="%s"\n'   "$CF_API_KEY"
+    } > "$CF_CONFIG"
+    chmod 600 "$CF_CONFIG"
+    echo -e "${G}[+] Saved to ${CF_CONFIG}${N}"
+  fi
+}
+
+# Prompt if no credentials are available
+if [[ -z "$CF_API_TOKEN" && ( -z "$CF_API_KEY" || -z "$CF_EMAIL" ) ]]; then
+  prompt_credentials
+fi
+
 if [ -n "$CF_API_TOKEN" ]; then
   AUTH=(-H "Authorization: Bearer $CF_API_TOKEN")
   AUTH_MODE="API Token"
@@ -23,7 +65,7 @@ elif [ -n "$CF_API_KEY" ]; then
   AUTH=(-H "X-Auth-Email: $CF_EMAIL" -H "X-Auth-Key: $CF_API_KEY")
   AUTH_MODE="Global API Key"
 else
-  echo -e "${R}[!] Set CF_API_TOKEN or CF_API_KEY at the top of the script${N}"
+  echo -e "${R}[!] No credentials provided.${N}"
   exit 1
 fi
 CT=(-H "Content-Type: application/json")
@@ -51,7 +93,9 @@ verify_auth() {
   fi
   ok=$(echo "$resp" | jq -r '.success')
   if [ "$ok" != "true" ]; then
-    echo -e "${R}[!] Auth failed:${N}"; echo "$resp" | jq '.errors'; exit 1
+    echo -e "${R}[!] Auth failed:${N}"; echo "$resp" | jq '.errors'
+    echo -e "${Y}Hint: delete ${CF_CONFIG} and re-run to reconfigure credentials.${N}"
+    exit 1
   fi
 }
 
@@ -302,6 +346,7 @@ while :; do
   echo -e "  ${G}2${N}) Add A record to a domain"
   echo -e "  ${G}3${N}) Edit existing A record"
   echo -e "  ${G}4${N}) Delete A record"
+  echo -e "  ${G}r${N}) Reconfigure credentials"
   echo -e "  ${G}0${N}) Exit"
   echo
   read -rp "Choice: " choice
@@ -310,6 +355,11 @@ while :; do
     2) opt_add ;;
     3) opt_edit ;;
     4) opt_delete ;;
+    r|R)
+      rm -f "$CF_CONFIG"
+      echo -e "${Y}Credentials cleared. Re-run the script to set new credentials.${N}"
+      exit 0
+      ;;
     0) echo "Bye"; exit 0 ;;
     *) echo -e "${R}Invalid choice${N}" ;;
   esac

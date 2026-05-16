@@ -33,7 +33,7 @@
 ## Быстрый старт
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/heads/v2/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/heads/main/install.sh)
 ```
 
 > [!IMPORTANT]
