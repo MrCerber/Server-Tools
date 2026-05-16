@@ -695,11 +695,11 @@ fail2ban_write_jail_local() {
 
   cat > /etc/fail2ban/jail.local <<'EOF'
 [DEFAULT]
-# Progressive banning: each repeat offence multiplies the ban time (24x)
+# Progressive banning: each repeat offence multiplies the ban duration (24x per offence)
 bantime.increment  = true
 bantime.multiplier = 24
-bantime.maxtime    = 720h    # cap at 30 days
-bantime            = 1h      # initial ban duration
+bantime.maxtime    = 720h
+bantime            = 1h
 findtime           = 10m
 maxretry           = 3
 backend            = systemd
@@ -707,16 +707,18 @@ banaction          = ufw
 ignoreip           = 127.0.0.1/8 ::1
 
 [sshd]
-enabled  = true
-mode     = aggressive        # catches pre-auth floods, not just auth failures
-port     = ssh
-logpath  = %(syslog_authpriv)s
+enabled = true
+# aggressive mode catches pre-authentication floods in addition to auth failures
+mode    = aggressive
+port    = ssh
+logpath = %(syslog_authpriv)s
 
 [recidive]
+# IPs that get banned multiple times receive a 30-day block
 enabled   = true
 logpath   = /var/log/fail2ban.log
 banaction = ufw
-bantime   = 720h             # 30 days for repeat offenders
+bantime   = 720h
 findtime  = 1d
 maxretry  = 5
 EOF
