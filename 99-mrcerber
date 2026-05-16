@@ -179,6 +179,21 @@ kv "Disk /" "${DISK_BAR}  ${DISK_PCT}%  ${DIM}(${DISK_USED}/${DISK_TOTAL})${R}"
 h "Services"
 printf "  %s  %s  %s\n" "$(svc_item docker)" "$(svc_item fail2ban)" "$(svc_item ufw)"
 
+if command -v docker >/dev/null 2>&1 && systemctl is-active --quiet docker 2>/dev/null; then
+  CONTAINERS=$(docker ps --format "{{.Names}}\t{{.Status}}\t{{.Image}}" 2>/dev/null)
+  h "Containers"
+  if [ -z "$CONTAINERS" ]; then
+    kv "Running" "${DIM}none${R}"
+  else
+    echo "$CONTAINERS" | while IFS=$'\t' read -r name status image; do
+      printf "  %b%-20s%b %b%-28s%b %b%s%b\n" \
+        "$OK" "$name" "$R" \
+        "$DIM" "$status" "$R" \
+        "$DIM" "$image" "$R"
+    done
+  fi
+fi
+
 h "Updates"
 if [ "$UPDATES_TOTAL" = "n/a" ]; then
   kv "Status" "${DIM}n/a (install update-notifier-common for fast counts)${R}"

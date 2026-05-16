@@ -3,17 +3,18 @@
 # Requirements:
 # - MUST be run as root
 # - SSH keys already installed for root (assumed)
-# - NO user creation, NO timezone changes, NO swap changes
 #
 # Features:
-# - Interactive main menu + sub menus (UFW / Fail2ban)
-# - Base packages install
+# - Interactive main menu + sub menus (UFW / Fail2ban / SSH)
+# - Base packages install, sudo user creation, swap setup
 # - Automatic security updates (unattended-upgrades)
+# - Kernel/network security hardening (sysctl)
 # - Disable default MOTD + disable SSH "Last login"
 # - Install custom MOTD from two files: 99-mrcerber and logo.txt
 # - Restore default MOTD + restore "Last login"
 # - Install useful shell aliases (bench, geoip)
 # - OS version check, internet connectivity check, action logging
+# - Auto-reboot cron (Cron/Restart.sh integration)
 #
 # How custom MOTD works:
 # Place your custom files next to this script:
@@ -252,6 +253,85 @@ install_base_packages() {
 }
 
 # ---------------------------
+# User management
+# ---------------------------
+create_sudo_user() {
+  local username
+  while true; do
+    read -r -p "Enter new username: " username
+    [[ -n "$username" ]] || { warn "Username cannot be empty."; continue; }
+    if ! [[ "$username" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+      warn "Invalid username. Use lowercase letters, digits, underscores, hyphens (max 32 chars)."; continue
+    fi
+    if id "$username" >/dev/null 2>&1; then
+      warn "User '${username}' already exists."; return 0
+    fi
+    break
+  done
+  confirm "Create user '${username}' and add to sudo?" || return 0
+  adduser --gecos "" "$username"
+  usermod -aG sudo "$username"
+  log_action "create_sudo_user ${username}"
+  say "User '${username}' created and added to sudo group."
+  read -r -p "  Paste SSH public key for ${username} (leave blank to skip): " pubkey
+  if [[ -n "$pubkey" ]]; then
+    local ssh_dir="/home/${username}/.ssh"
+    mkdir -p "$ssh_dir"
+    printf "%s\n" "$pubkey" >> "${ssh_dir}/authorized_keys"
+    chmod 700 "$ssh_dir"
+    chmod 600 "${ssh_dir}/authorized_keys"
+    chown -R "${username}:${username}" "$ssh_dir"
+    log_action "ssh key added for ${username}"
+    say "SSH public key installed for '${username}'."
+  fi
+}
+
+# ---------------------------
+# Swap
+# ---------------------------
+setup_swap() {
+  if swapon --show | grep -q .; then
+    say "Swap is already configured:"
+    swapon --show
+    say ""
+    confirm "Replace existing swap?" || return 0
+    swapoff -a
+    sed -i '/\bswap\b/d' /etc/fstab
+    [[ -f /swapfile ]] && rm -f /swapfile
+  fi
+  local size
+  while true; do
+    read -r -p "Swap size (e.g. 1G, 2G, 512M): " size
+    [[ -n "$size" ]] || { warn "Cannot be empty."; continue; }
+    if ! [[ "$size" =~ ^[0-9]+[GgMm]$ ]]; then
+      warn "Invalid format. Examples: 1G, 2G, 512M"; continue
+    fi
+    break
+  done
+  confirm "Create ${size} swapfile at /swapfile?" || return 0
+  log_action "setup_swap ${size}"
+  if ! fallocate -l "$size" /swapfile 2>/dev/null; then
+    warn "fallocate failed (btrfs?); falling back to dd..."
+    local mb
+    case "${size^^}" in
+      *G) mb=$(( ${size%[Gg]} * 1024 )) ;;
+      *M) mb=${size%[Mm]} ;;
+      *)  die "Cannot parse size." ;;
+    esac
+    dd if=/dev/zero of=/swapfile bs=1M count="$mb" status=progress
+  fi
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  grep -q '/swapfile' /etc/fstab || printf "\n/swapfile none swap sw 0 0\n" >> /etc/fstab
+  printf "vm.swappiness=10\nvm.vfs_cache_pressure=50\n" \
+    > /etc/sysctl.d/99-mrcerber-swap.conf
+  sysctl --system >/dev/null 2>&1 || true
+  say "Swap configured: ${size} at /swapfile (swappiness=10)"
+  swapon --show
+}
+
+# ---------------------------
 # Unattended Upgrades
 # ---------------------------
 enable_auto_updates() {
@@ -355,6 +435,71 @@ ssh_change_port() {
   fi
   log_action "ssh_change_port ${port}"
   say "SSH port changed to ${port}. Reconnect on the new port."
+}
+
+ssh_status() {
+  say "Current SSH security settings (${SSHD_CONFIG}):"
+  say ""
+  local port auth root_login printlastlog
+  port="$(grep -iE '^\s*Port\s+' "${SSHD_CONFIG}" 2>/dev/null | awk '{print $2}' | tail -1 || true)"
+  auth="$(grep -iE '^\s*PasswordAuthentication\s+' "${SSHD_CONFIG}" 2>/dev/null | awk '{print $2}' | tail -1 || true)"
+  root_login="$(grep -iE '^\s*PermitRootLogin\s+' "${SSHD_CONFIG}" 2>/dev/null | awk '{print $2}' | tail -1 || true)"
+  printlastlog="$(grep -iE '^\s*PrintLastLog\s+' "${SSHD_CONFIG}" 2>/dev/null | awk '{print $2}' | tail -1 || true)"
+  printf "  %-30s %s\n" "Port:"                   "${port:-22 (default)}"
+  printf "  %-30s %s\n" "PasswordAuthentication:" "${auth:-yes (default)}"
+  printf "  %-30s %s\n" "PermitRootLogin:"        "${root_login:-yes (default)}"
+  printf "  %-30s %s\n" "PrintLastLog:"           "${printlastlog:-yes (default)}"
+}
+
+ssh_disable_password_auth() {
+  say "Disabling SSH password authentication (key-only login)..."
+  warn "This will lock out password-based SSH logins. Ensure you have a working key."
+  confirm "Continue?" || return 0
+  backup_file "${SSHD_CONFIG}"
+  if grep -qiE '^\s*PasswordAuthentication\s+' "${SSHD_CONFIG}"; then
+    sed -i -E "s/^\s*PasswordAuthentication\s+.*/PasswordAuthentication no/I" "${SSHD_CONFIG}"
+  else
+    printf "\nPasswordAuthentication no\n" >> "${SSHD_CONFIG}"
+  fi
+  _sshd_validate_and_reload
+  log_action "ssh_disable_password_auth"
+  say "Password authentication disabled. Key-based login only."
+}
+
+ssh_restrict_root_login() {
+  say "Setting PermitRootLogin to prohibit-password..."
+  say "Root can still log in with SSH keys; password login for root will be blocked."
+  confirm "Continue?" || return 0
+  backup_file "${SSHD_CONFIG}"
+  if grep -qiE '^\s*PermitRootLogin\s+' "${SSHD_CONFIG}"; then
+    sed -i -E "s/^\s*PermitRootLogin\s+.*/PermitRootLogin prohibit-password/I" "${SSHD_CONFIG}"
+  else
+    printf "\nPermitRootLogin prohibit-password\n" >> "${SSHD_CONFIG}"
+  fi
+  _sshd_validate_and_reload
+  log_action "ssh_restrict_root_login"
+  say "Root password login disabled (key-based root login still works)."
+}
+
+ssh_menu() {
+  while true; do
+    clear
+    _menu_header "SSH Hardening"
+    _menu_item "1" "Status"                  "show key sshd_config settings"
+    _menu_item "2" "Disable password auth"   "key-only login (PasswordAuthentication no)"
+    _menu_item "3" "Restrict root login"     "prohibit-password (keys only for root)"
+    _menu_item "4" "Change SSH port"         "update Port in sshd_config"
+    _menu_item "0" "Back"                    ""
+    read -r -p "  Select: " c
+    case "$c" in
+      1) ssh_status; pause ;;
+      2) ssh_disable_password_auth; pause ;;
+      3) ssh_restrict_root_login; pause ;;
+      4) ssh_change_port; pause ;;
+      0) break ;;
+      *) warn "Invalid choice."; pause ;;
+    esac
+  done
 }
 
 # ---------------------------
@@ -547,6 +692,54 @@ cleanup_apt() {
   after="$(du -sh /var/cache/apt 2>/dev/null | awk '{print $1}')"
   say "Cache after cleanup:  ${after}"
   say "Done."
+}
+
+# ---------------------------
+# Auto-reboot cron
+# ---------------------------
+setup_auto_reboot_cron() {
+  local src="${SCRIPT_DIR}/Cron/Restart.sh"
+  local dest="/usr/local/sbin/mrcerber-auto-reboot.sh"
+  local cron_file="/etc/cron.d/mrcerber-auto-reboot"
+
+  if [[ -f "$cron_file" ]]; then
+    say "Auto-reboot cron is currently active:"
+    cat "$cron_file"
+    say ""
+    confirm "Reconfigure?" || {
+      if confirm "Disable auto-reboot cron?"; then
+        rm -f "$cron_file"
+        log_action "setup_auto_reboot_cron DISABLED"
+        say "Auto-reboot cron removed."
+      fi
+      return 0
+    }
+  fi
+
+  if [[ ! -f "$src" ]]; then
+    require_internet_or_warn
+    say "Downloading Cron/Restart.sh from GitHub..."
+    _TMPDIR="$(mktemp -d -t mrcerber-cron-XXXXXX)"
+    if has_cmd curl; then
+      curl -fsSL --max-time 30 "${MOTD_BASE_URL}/Cron/Restart.sh" -o "${_TMPDIR}/Restart.sh" \
+        || { warn "Failed to download Restart.sh."; _TMPDIR=""; return 0; }
+    else
+      wget -qO "${_TMPDIR}/Restart.sh" "${MOTD_BASE_URL}/Cron/Restart.sh" \
+        || { warn "Failed to download Restart.sh."; _TMPDIR=""; return 0; }
+    fi
+    src="${_TMPDIR}/Restart.sh"
+  fi
+
+  confirm "Install auto-reboot cron (runs hourly, reboots only if kernel update pending)?" || return 0
+  install -m 0750 "$src" "$dest"
+  printf "# MrCerber auto-reboot\n0 * * * * root %s >> /var/log/mrcerber-auto-reboot.log 2>&1\n" \
+    "$dest" > "$cron_file"
+  chmod 644 "$cron_file"
+  _TMPDIR=""
+  log_action "setup_auto_reboot_cron ENABLED"
+  say "Auto-reboot cron installed."
+  say "  Script : ${dest}"
+  say "  Cron   : ${cron_file} (runs hourly)"
 }
 
 # ---------------------------
@@ -787,6 +980,35 @@ fail2ban_menu() {
 }
 
 # ---------------------------
+# Kernel hardening
+# ---------------------------
+apply_sysctl_hardening() {
+  local conf="/etc/sysctl.d/99-mrcerber-hardening.conf"
+  if [[ -f "$conf" ]]; then
+    say "Kernel hardening already applied (${conf} exists)."
+    confirm "Re-apply / overwrite?" || return 0
+  fi
+  log_action "apply_sysctl_hardening"
+  cat > "$conf" <<'EOF'
+# MrCerber — kernel network security hardening
+net.ipv4.tcp_syncookies = 1
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.conf.default.log_martians = 1
+net.ipv6.conf.all.forwarding = 0
+EOF
+  sysctl --system >/dev/null 2>&1 || true
+  say "Kernel hardening applied. Settings written to ${conf}."
+}
+
+# ---------------------------
 # Scripts submenu
 # ---------------------------
 run_script() {
@@ -884,33 +1106,37 @@ main_menu() {
     _menu_item " 2" "Update / upgrade only"   "apt-get update && upgrade"
     _menu_item " 3" "Install base packages"   "curl, git, htop, btop, jq, ufw..."
     _menu_item " 4" "Enable auto-updates"     "unattended-upgrades"
+    _menu_item " 5" "Create sudo user"        "add non-root user with sudo + SSH key"
+    _menu_item " 6" "Setup swap"              "create /swapfile + persist in fstab"
     echo
 
     _menu_section "MOTD & SSH"
-    _menu_item " 5" "Install custom MOTD"     "disable default + install 99-mrcerber"
-    _menu_item " 6" "Restore default MOTD"    "re-enable system MOTD scripts"
-    _menu_item " 7" "Preview MOTD"            "run-parts /etc/update-motd.d"
-    _menu_item " 8" "Change SSH port"         "update Port in sshd_config"
+    _menu_item " 7" "Install custom MOTD"     "disable default + install 99-mrcerber"
+    _menu_item " 8" "Restore default MOTD"    "re-enable system MOTD scripts"
+    _menu_item " 9" "Preview MOTD"            "run-parts /etc/update-motd.d"
+    _menu_item "10" "SSH submenu"             "port, password auth, root login hardening"
     echo
 
     _menu_section "Security"
-    _menu_item " 9" "UFW submenu"             "firewall rules & management"
-    _menu_item "10" "Fail2ban submenu"        "SSH brute-force protection"
+    _menu_item "11" "UFW submenu"             "firewall rules & management"
+    _menu_item "12" "Fail2ban submenu"        "SSH brute-force protection"
+    _menu_item "13" "Kernel hardening"        "sysctl: SYN cookies, anti-spoof, redirects"
     echo
 
     _menu_section "Panels"
-    _menu_item "11" "Install Docker"          "official get.docker.com installer"
-    _menu_item "12" "Install 1Panel"          "web-based server management panel"
+    _menu_item "14" "Install Docker"          "official get.docker.com installer"
+    _menu_item "15" "Install 1Panel"          "web-based server management panel"
     echo
 
     _menu_section "Extras"
-    _menu_item "13" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
-    _menu_item "14" "APT cleanup"             "autoremove + clean apt cache"
-    _menu_item "15" "Show action log"         "last 20 entries from bootstrap log"
+    _menu_item "16" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
+    _menu_item "17" "APT cleanup"             "autoremove + clean apt cache"
+    _menu_item "18" "Auto-reboot cron"        "install/manage Cron/Restart.sh"
+    _menu_item "19" "Show action log"         "last 20 entries from bootstrap log"
     echo
 
     _menu_section "Scripts"
-    _menu_item "16" "Scripts submenu"         "run utility scripts (DNS, BBR...)"
+    _menu_item "20" "Scripts submenu"         "run utility scripts (DNS, BBR...)"
     echo
 
     _sep
@@ -923,18 +1149,22 @@ main_menu() {
        2) apt_update_upgrade; pause ;;
        3) install_base_packages; pause ;;
        4) enable_auto_updates; pause ;;
-       5) install_custom_motd; pause ;;
-       6) restore_default_motd; pause ;;
-       7) preview_motd; pause ;;
-       8) ssh_change_port; pause ;;
-       9) ufw_menu ;;
-      10) fail2ban_menu ;;
-      11) install_docker; pause ;;
-      12) install_1panel; pause ;;
-      13) install_aliases; pause ;;
-      14) cleanup_apt; pause ;;
-      15) show_log; pause ;;
-      16) scripts_menu ;;
+       5) create_sudo_user; pause ;;
+       6) setup_swap; pause ;;
+       7) install_custom_motd; pause ;;
+       8) restore_default_motd; pause ;;
+       9) preview_motd; pause ;;
+      10) ssh_menu ;;
+      11) ufw_menu ;;
+      12) fail2ban_menu ;;
+      13) apply_sysctl_hardening; pause ;;
+      14) install_docker; pause ;;
+      15) install_1panel; pause ;;
+      16) install_aliases; pause ;;
+      17) cleanup_apt; pause ;;
+      18) setup_auto_reboot_cron; pause ;;
+      19) show_log; pause ;;
+      20) scripts_menu ;;
        0) exit 0 ;;
        *) warn "Invalid choice."; pause ;;
     esac

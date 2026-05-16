@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# בדיקת root
+# Check for root
 if [[ $EUID -ne 0 ]]; then
     echo "Error: run as root (sudo bash enable_bbr.sh)"
     exit 1
 fi
 
-# בדיקה אם BBR כבר פעיל
+# Check if BBR is already enabled
 if [[ $(sysctl -n net.ipv4.tcp_congestion_control) == "bbr" ]] && [[ $(sysctl -n net.core.default_qdisc) =~ ^(fq|cake)$ ]]; then
     echo "BBR is already enabled!"
     sysctl net.ipv4.tcp_congestion_control
@@ -14,19 +14,19 @@ if [[ $(sysctl -n net.ipv4.tcp_congestion_control) == "bbr" ]] && [[ $(sysctl -n
     exit 0
 fi
 
-# טעינת מודול BBR
+# Load BBR kernel module
 modprobe tcp_bbr
 
-# כתיבה ל-sysctl.d (נכון יותר מ-sysctl.conf)
+# Write to sysctl.d (preferred over sysctl.conf)
 cat > /etc/sysctl.d/99-bbr.conf << EOF
 net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
 EOF
 
-# יישום
+# Apply
 sysctl --system > /dev/null 2>&1
 
-# וידוא
+# Verify
 CC=$(sysctl -n net.ipv4.tcp_congestion_control)
 QD=$(sysctl -n net.core.default_qdisc)
 
