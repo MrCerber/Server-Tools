@@ -650,6 +650,27 @@ install_aliases() {
   fi
 }
 
+create_script_alias() {
+  say "Creating script launcher alias..."
+  [[ -f "${ALIASES_BASHRC}" ]] || touch "${ALIASES_BASHRC}"
+  backup_file "${ALIASES_BASHRC}"
+
+  local alias_name="mrc-tools"
+  local alias_cmd="bash <(curl -fsSL https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/heads/main/install.sh)"
+
+  if grep -q "alias ${alias_name}=" "${ALIASES_BASHRC}" 2>/dev/null; then
+    say "  ${alias_name} : already exists, skipping."
+  else
+    printf "\nalias %s='%s'\n" "${alias_name}" "${alias_cmd}" >> "${ALIASES_BASHRC}"
+    say "  ${C_OK}${alias_name}${R} : added  ->  ${C_DIM}${ALIASES_BASHRC}${R}"
+    log_action "alias ${alias_name} added to ${ALIASES_BASHRC}"
+    say ""
+    say "  ${C_WARN}NOTE:${R} Reload to apply:"
+    say "  ${C_DIM}source ${ALIASES_BASHRC}${R}   <- this session"
+    say "  ${C_DIM}(or reconnect via SSH)${R}"
+  fi
+}
+
 # ---------------------------
 # Panels
 # ---------------------------
@@ -1101,42 +1122,46 @@ main_menu() {
     _sep
     echo
 
+    _menu_section "Quick Setup"
+    _menu_item " 1" "Create launcher alias"   "alias mrc-tools -> run this script from anywhere"
+    echo
+
     _menu_section "System"
-    _menu_item " 1" "Full base setup"         "update + packages + auto-updates"
-    _menu_item " 2" "Update / upgrade only"   "apt-get update && upgrade"
-    _menu_item " 3" "Install base packages"   "curl, git, htop, btop, jq, ufw..."
-    _menu_item " 4" "Enable auto-updates"     "unattended-upgrades"
-    _menu_item " 5" "Create sudo user"        "add non-root user with sudo + SSH key"
-    _menu_item " 6" "Setup swap"              "create /swapfile + persist in fstab"
+    _menu_item " 2" "Full base setup"         "update + packages + auto-updates"
+    _menu_item " 3" "Update / upgrade only"   "apt-get update && upgrade"
+    _menu_item " 4" "Install base packages"   "curl, git, htop, btop, jq, ufw..."
+    _menu_item " 5" "Enable auto-updates"     "unattended-upgrades"
+    _menu_item " 6" "Create sudo user"        "add non-root user with sudo + SSH key"
+    _menu_item " 7" "Setup swap"              "create /swapfile + persist in fstab"
     echo
 
     _menu_section "MOTD & SSH"
-    _menu_item " 7" "Install custom MOTD"     "disable default + install 99-mrcerber"
-    _menu_item " 8" "Restore default MOTD"    "re-enable system MOTD scripts"
-    _menu_item " 9" "Preview MOTD"            "run-parts /etc/update-motd.d"
-    _menu_item "10" "SSH submenu"             "port, password auth, root login hardening"
+    _menu_item " 8" "Install custom MOTD"     "disable default + install 99-mrcerber"
+    _menu_item " 9" "Restore default MOTD"    "re-enable system MOTD scripts"
+    _menu_item "10" "Preview MOTD"            "run-parts /etc/update-motd.d"
+    _menu_item "11" "SSH submenu"             "port, password auth, root login hardening"
     echo
 
     _menu_section "Security"
-    _menu_item "11" "UFW submenu"             "firewall rules & management"
-    _menu_item "12" "Fail2ban submenu"        "SSH brute-force protection"
-    _menu_item "13" "Kernel hardening"        "sysctl: SYN cookies, anti-spoof, redirects"
+    _menu_item "12" "UFW submenu"             "firewall rules & management"
+    _menu_item "13" "Fail2ban submenu"        "SSH brute-force protection"
+    _menu_item "14" "Kernel hardening"        "sysctl: SYN cookies, anti-spoof, redirects"
     echo
 
     _menu_section "Panels"
-    _menu_item "14" "Install Docker"          "official get.docker.com installer"
-    _menu_item "15" "Install 1Panel"          "web-based server management panel"
+    _menu_item "15" "Install Docker"          "official get.docker.com installer"
+    _menu_item "16" "Install 1Panel"          "web-based server management panel"
     echo
 
     _menu_section "Extras"
-    _menu_item "16" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
-    _menu_item "17" "APT cleanup"             "autoremove + clean apt cache"
-    _menu_item "18" "Auto-reboot cron"        "install/manage Cron/Restart.sh"
-    _menu_item "19" "Show action log"         "last 20 entries from bootstrap log"
+    _menu_item "17" "Install aliases"         "bench, geoip  ->  /root/.bashrc"
+    _menu_item "18" "APT cleanup"             "autoremove + clean apt cache"
+    _menu_item "19" "Auto-reboot cron"        "install/manage Cron/Restart.sh"
+    _menu_item "20" "Show action log"         "last 20 entries from bootstrap log"
     echo
 
     _menu_section "Scripts"
-    _menu_item "20" "Scripts submenu"         "run utility scripts (DNS, BBR...)"
+    _menu_item "21" "Scripts submenu"         "run utility scripts (DNS, BBR...)"
     echo
 
     _sep
@@ -1145,26 +1170,27 @@ main_menu() {
 
     read -r -p "  Select: " choice
     case "$choice" in
-       1) full_base_setup; pause ;;
-       2) apt_update_upgrade; pause ;;
-       3) install_base_packages; pause ;;
-       4) enable_auto_updates; pause ;;
-       5) create_sudo_user; pause ;;
-       6) setup_swap; pause ;;
-       7) install_custom_motd; pause ;;
-       8) restore_default_motd; pause ;;
-       9) preview_motd; pause ;;
-      10) ssh_menu ;;
-      11) ufw_menu ;;
-      12) fail2ban_menu ;;
-      13) apply_sysctl_hardening; pause ;;
-      14) install_docker; pause ;;
-      15) install_1panel; pause ;;
-      16) install_aliases; pause ;;
-      17) cleanup_apt; pause ;;
-      18) setup_auto_reboot_cron; pause ;;
-      19) show_log; pause ;;
-      20) scripts_menu ;;
+       1) create_script_alias; pause ;;
+       2) full_base_setup; pause ;;
+       3) apt_update_upgrade; pause ;;
+       4) install_base_packages; pause ;;
+       5) enable_auto_updates; pause ;;
+       6) create_sudo_user; pause ;;
+       7) setup_swap; pause ;;
+       8) install_custom_motd; pause ;;
+       9) restore_default_motd; pause ;;
+      10) preview_motd; pause ;;
+      11) ssh_menu ;;
+      12) ufw_menu ;;
+      13) fail2ban_menu ;;
+      14) apply_sysctl_hardening; pause ;;
+      15) install_docker; pause ;;
+      16) install_1panel; pause ;;
+      17) install_aliases; pause ;;
+      18) cleanup_apt; pause ;;
+      19) setup_auto_reboot_cron; pause ;;
+      20) show_log; pause ;;
+      21) scripts_menu ;;
        0) exit 0 ;;
        *) warn "Invalid choice."; pause ;;
     esac
