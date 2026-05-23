@@ -6,6 +6,7 @@
 
 [![Shell](https://img.shields.io/badge/Shell-Bash-4EAA25?style=flat-square&logo=gnubash&logoColor=white)](https://www.gnu.org/software/bash/)
 [![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%7C%20Debian-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com/)
+[![Gum](https://img.shields.io/badge/TUI-Gum%20(Charm)-FF6E6E?style=flat-square)](https://github.com/charmbracelet/gum)
 [![License](https://img.shields.io/badge/License-Personal-blue?style=flat-square)](#)
 [![Root](https://img.shields.io/badge/Requires-root-critical?style=flat-square)](#)
 
@@ -15,7 +16,11 @@
 
 ## О проекте
 
-Один скрипт — полная начальная настройка сервера. Устанавливает базовые пакеты, настраивает файрвол, Fail2ban, кастомный MOTD и shell-алиасы. Всё через интерактивное меню с цветным выводом и логированием.
+Полная начальная настройка сервера за один запуск. Устанавливает базовые пакеты, настраивает файрвол, Fail2ban, кастомный MOTD и shell-алиасы.
+
+Доступны два варианта:
+- **`install.sh`** — классическая версия с цветным меню (ввод числа + Enter)
+- **`install-tui.sh`** — TUI-версия с навигацией стрелками, выбором языка EN/RU и красивым интерфейсом через [gum](https://github.com/charmbracelet/gum)
 
 - 📦 Обновляет пакеты и устанавливает базовый набор утилит
 - 🔄 Настраивает автоматические security-обновления
@@ -32,17 +37,34 @@
 - ⚡ Добавляет полезные алиасы в `.bashrc`
 - 🧹 Очищает APT-кэш и удаляет неиспользуемые пакеты
 - 📝 Логирует все действия и создаёт резервные копии
+- 🌐 Выбор языка (English / Русский) при каждом запуске *(TUI-версия)*
 
 ---
 
 ## Быстрый старт
 
+### Классическая версия
+
 ```bash
 bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/heads/main/install.sh)
 ```
 
+### TUI-версия (gum, EN/RU) — простой способ
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/heads/main/get-tui.sh)
+```
+
+### TUI-версия — через архив (без git)
+
+```bash
+curl -fsSL https://github.com/MrCerber/Server-Tools/archive/refs/heads/main.tar.gz \
+  | tar -xz -C /tmp && bash /tmp/Server-Tools-main/install-tui.sh
+```
+
 > [!IMPORTANT]
 > Скрипт запускается **от root**. SSH-ключи должны быть установлены заранее.
+> TUI-версия автоматически устанавливает `gum` при первом запуске.
 
 ---
 
@@ -64,10 +86,58 @@ bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/hea
 
 ## Меню
 
-При запуске открывается интерактивное цветное меню со статусом сервисов в реальном времени.
+### TUI-версия (`install-tui.sh`)
+
+Навигация стрелками ↑↓, выбор — `Enter`. Можно начать вводить название пункта — список фильтруется на лету.
 
 <details>
-<summary><b>📋 Показать структуру меню</b></summary>
+<summary><b>📋 Показать структуру TUI-меню</b></summary>
+<br>
+
+```
+  ╭─────────────────────────────────╮
+  │   MrCerber Server Tools         │
+  ╰─────────────────────────────────╯
+  Ubuntu / Debian  |  Run as root
+  UFW: active    Fail2ban: active
+
+  ─── Quick Setup ───
+  ▶ Create launcher alias (mrc-tools)
+  ─── System ───
+    Full base setup
+    Update / upgrade only
+    Install base packages
+    Enable auto-updates
+    Create sudo user
+    Setup swap
+  ─── MOTD & SSH ───
+    Install custom MOTD
+    Restore default MOTD
+    Preview MOTD
+    SSH settings >
+  ─── Security ───
+    UFW firewall >
+    Fail2ban >
+    Kernel hardening
+  ─── Panels ───
+    Install Docker
+    Install 1Panel
+  ─── Extras ───
+    Install shell aliases
+    APT cleanup
+    Auto-reboot cron
+    Show action log
+  ─── Scripts ───
+    Scripts >
+    Exit
+```
+
+</details>
+
+### Классическая версия (`install.sh`)
+
+<details>
+<summary><b>📋 Показать структуру классического меню</b></summary>
 <br>
 
 ```
@@ -75,37 +145,40 @@ bash <(curl -Ls https://raw.githubusercontent.com/MrCerber/Server-Tools/refs/hea
   UFW: active        Fail2ban: active
   ────────────────────────────────────────────────────
 
+  Quick Setup
+    1)  Create launcher alias      alias mrc-tools -> run from anywhere
+
   System
-    1)  Full base setup          update + packages + auto-updates
-    2)  Update / upgrade only    apt-get update && upgrade
-    3)  Install base packages    curl, git, htop, btop, jq, ufw...
-    4)  Enable auto-updates      unattended-upgrades
-    5)  Create sudo user         add non-root user with sudo + SSH key
-    6)  Setup swap               create /swapfile + persist in fstab
+    2)  Full base setup            update + packages + auto-updates
+    3)  Update / upgrade only      apt-get update && upgrade
+    4)  Install base packages      curl, git, htop, btop, jq, ufw...
+    5)  Enable auto-updates        unattended-upgrades
+    6)  Create sudo user           add non-root user with sudo + SSH key
+    7)  Setup swap                 create /swapfile + persist in fstab
 
   MOTD & SSH
-    7)  Install custom MOTD      disable default + install 99-mrcerber
-    8)  Restore default MOTD     re-enable system MOTD scripts
-    9)  Preview MOTD             run-parts /etc/update-motd.d
-   10)  SSH submenu              port, password auth, root login hardening
+    8)  Install custom MOTD        disable default + install 99-mrcerber
+    9)  Restore default MOTD       re-enable system MOTD scripts
+   10)  Preview MOTD               run-parts /etc/update-motd.d
+   11)  SSH submenu                port, password auth, root login hardening
 
   Security
-   11)  UFW submenu              firewall rules & management
-   12)  Fail2ban submenu         SSH brute-force protection
-   13)  Kernel hardening         sysctl: SYN cookies, anti-spoof, redirects
+   12)  UFW submenu                firewall rules & management
+   13)  Fail2ban submenu           SSH brute-force protection
+   14)  Kernel hardening           sysctl: SYN cookies, anti-spoof, redirects
 
   Panels
-   14)  Install Docker           official get.docker.com installer
-   15)  Install 1Panel           web-based server management panel
+   15)  Install Docker             official get.docker.com installer
+   16)  Install 1Panel             web-based server management panel
 
   Extras
-   16)  Install aliases          bench, geoip  ->  /root/.bashrc
-   17)  APT cleanup              autoremove + clean apt cache
-   18)  Auto-reboot cron         install/manage Cron/Restart.sh
-   19)  Show action log          last 20 entries from bootstrap log
+   17)  Install aliases            bench, geoip  ->  /root/.bashrc
+   18)  APT cleanup                autoremove + clean apt cache
+   19)  Auto-reboot cron           install/manage Cron/Restart.sh
+   20)  Show action log            last 20 entries from bootstrap log
 
   Scripts
-   20)  Scripts submenu          run utility scripts (DNS, BBR...)
+   21)  Scripts submenu            run utility scripts (DNS, BBR...)
 
     0)  Exit
 ```
@@ -393,6 +466,8 @@ source ~/.bashrc
 | **Блокировка параллельного запуска** | `flock` предотвращает одновременный запуск двух копий скрипта |
 | **Валидация SSH-конфига** | `sshd -t` проверяет конфиг перед перезагрузкой; при ошибке бэкап восстанавливается автоматически |
 | **Таймаут загрузки** | `curl --max-time 30` предотвращает зависание при медленном соединении |
+| **Проверка SSH-ключа** | `ssh-keygen -l` валидирует публичный ключ перед записью в `authorized_keys` *(TUI)* |
+| **SHA256 для установщиков** | Docker/1Panel: скачивается во временный файл, показывается хэш, запрашивается подтверждение *(TUI)* |
 
 <details>
 <summary><b>📄 Пример лога</b></summary>
@@ -428,12 +503,25 @@ source ~/.bashrc
 
 ```
 Server-Tools/
-├── install.sh        # Главный скрипт с интерактивным меню
-├── 99-mrcerber       # Скрипт кастомного MOTD
-├── logo.txt          # ASCII-арт логотип для MOTD
-├── README.md         # Документация
+├── install.sh         # Классическая версия (read/case меню)
+├── install-tui.sh     # TUI-версия с gum и выбором языка EN/RU
+├── get-tui.sh         # Bootstrap: скачать и запустить TUI одной командой
+├── lib/
+│   ├── lang.sh        # Строки EN + RU, функция choose_language
+│   ├── ui.sh          # gum-обёртки: header, confirm, pause, spin
+│   ├── utils.sh       # Общие утилиты, валидаторы, backup
+│   ├── system.sh      # APT, swap, sudo, aliases, cron, hardening
+│   ├── motd.sh        # MOTD install/restore/preview
+│   ├── ssh.sh         # SSH настройки и подменю
+│   ├── ufw.sh         # UFW правила и подменю
+│   ├── fail2ban.sh    # Fail2ban и подменю
+│   ├── docker.sh      # Docker и 1Panel (с SHA256)
+│   └── scripts.sh     # Cloudflare DNS, BBR
+├── 99-mrcerber        # Скрипт кастомного MOTD
+├── logo.txt           # ASCII-арт логотип для MOTD
+├── README.md          # Документация
 ├── Cron/
-│   └── Restart.sh    # Скрипт автоматической перезагрузки (cron)
+│   └── Restart.sh     # Скрипт автоматической перезагрузки (cron)
 └── scripts/
     ├── cf_dns_manager.sh   # Менеджер DNS-записей Cloudflare
     ├── enable_bbr.sh       # Включение TCP BBR
