@@ -67,6 +67,5 @@ _fzf_pick() {
     --header-first \
     --preview='l=$(printf "%s" {} | cut -f2); d=$(printf "%s" {} | cut -f3); printf "\n  \033[1m%s\033[0m\n\n  \033[38;5;244m%s\033[0m\n" "$l" "$d"' \
     --preview-window='bottom:5:wrap' \
-    --bind='esc:abort' \
-    2>>"${LOG_FILE:-/tmp/mrcerber-fzf.log}" | cut -f1
+    --bind='esc:abort' | cut -f1
 }
