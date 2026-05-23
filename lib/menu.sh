@@ -58,6 +58,7 @@ _fzf_pick() {
     --ansi \
     --no-sort \
     --no-info \
+    --layout=reverse \
     --delimiter=$'\t' \
     --with-nth=2 \
     --prompt="  ▶  " \
