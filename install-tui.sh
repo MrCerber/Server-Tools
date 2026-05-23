@@ -58,14 +58,14 @@ source "${SCRIPT_DIR}/lib/scripts.sh"
 # ── Main menu ─────────────────────────────────────────────────────────────────
 main_menu() {
   local -a _SECTIONS=(
-    "quick|⚡ ${T[sec_quick]}|${T[d_sec_quick]}"
-    "system|🖥️  ${T[sec_system]}|${T[d_sec_system]}"
-    "users|👤 ${T[sec_users]}|${T[d_sec_users]}"
-    "security|🛡️  ${T[sec_security]}|${T[d_sec_security]}"
-    "appearance|🎨 ${T[sec_appearance]}|${T[d_sec_appearance]}"
-    "services|📦 ${T[sec_services]}|${T[d_sec_services]}"
-    "utils|🔧 ${T[sec_utils]}|${T[d_sec_utils]}"
-    "exit|🚪 ${T[exit]}|"
+    "quick|${T[sec_quick]}|${T[d_sec_quick]}"
+    "system|${T[sec_system]}|${T[d_sec_system]}"
+    "users|${T[sec_users]}|${T[d_sec_users]}"
+    "security|${T[sec_security]}|${T[d_sec_security]}"
+    "appearance|${T[sec_appearance]}|${T[d_sec_appearance]}"
+    "services|${T[sec_services]}|${T[d_sec_services]}"
+    "utils|${T[sec_utils]}|${T[d_sec_utils]}"
+    "exit|${T[exit]}|"
   )
   local -a _ITEMS_QUICK=(
     "full_setup|${T[m_full_setup]}|${T[d_full_setup]}"
@@ -119,7 +119,7 @@ main_menu() {
       "${T[title]}" "$(hostname -s 2>/dev/null || echo server)" "$_ufw_b" "$_f2b_b")"
 
     local _section_id
-    _section_id=$(_fzf_pick _SECTIONS "$_main_hdr") || exit 0
+    _section_id=$(_fzf_pick "$_main_hdr" "${_SECTIONS[@]}") || exit 0
     [[ -z "$_section_id" || "$_section_id" == "exit" ]] && exit 0
 
     local _sec_lbl _s
@@ -134,7 +134,7 @@ main_menu() {
 
     while true; do
       local _action
-      _action=$(_fzf_pick _cur_items "$_section_hdr") || break
+      _action=$(_fzf_pick "$_section_hdr" "${_cur_items[@]}") || break
       [[ -z "$_action" || "$_action" == "back" ]] && break
 
       case "$_action" in

@@ -10,15 +10,15 @@ ensure_fzf() {
 }
 
 # ── Menu picker ───────────────────────────────────────────────────────────────
-# Usage : _fzf_pick <items_array_name> <header_text>
+# Usage : _fzf_pick <header_text> <item> [item...]
 # Items : "id|label|description"
 # Returns: selected id via stdout; empty on Esc / Ctrl+C
 _fzf_pick() {
-  local -n _fp="$1"
-  local _hdr="${2:-}"
+  local _hdr="${1:-}"
+  shift
 
   local _input="" _i
-  for _i in "${_fp[@]}"; do
+  for _i in "$@"; do
     local _id="${_i%%|*}"
     local _rest="${_i#*|}"
     local _lbl="${_rest%%|*}"
