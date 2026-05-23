@@ -135,6 +135,16 @@ _svc_badge() {
   fi
 }
 
+_svc_badge_color() {
+  if systemctl is-active --quiet "$1" 2>/dev/null; then
+    printf "🟢 \e[38;5;82mactive\e[0m"
+  elif systemctl is-enabled --quiet "$1" 2>/dev/null; then
+    printf "🟡 \e[38;5;220mstopped\e[0m"
+  else
+    printf "⚫ \e[38;5;240minactive\e[0m"
+  fi
+}
+
 # ── Internet / OS checks ──────────────────────────────────────────────────────
 check_internet() {
   if ! ping -c1 -W3 8.8.8.8 >/dev/null 2>&1; then

@@ -54,40 +54,43 @@ main_menu() {
   while true; do
     clear
     gum_header "${T[title]}"
-    gum style --foreground 240 "  ${T[subtitle]}"
-    gum style --foreground 240 "  UFW: $(_svc_badge ufw)    Fail2ban: $(_svc_badge fail2ban)"
-    echo
+    gum_status_bar
 
     local choice
-    choice=$(gum choose --cursor="▶ " --height=30 \
+    choice=$(gum choose \
+      --cursor="▶ " \
+      --cursor.foreground="45" \
+      --selected.foreground="45" \
+      --item.foreground="252" \
+      --height=30 \
       "  ─── ${T[sec_quick]} ───" \
+      "  ${T[m_full_setup]}" \
       "  ${T[m_alias]}" \
       "  ─── ${T[sec_system]} ───" \
-      "  ${T[m_full_setup]}" \
       "  ${T[m_update]}" \
       "  ${T[m_packages]}" \
       "  ${T[m_autoupdates]}" \
-      "  ${T[m_sudo_user]}" \
       "  ${T[m_swap]}" \
-      "  ─── ${T[sec_motd_ssh]} ───" \
-      "  ${T[m_motd_install]}" \
-      "  ${T[m_motd_restore]}" \
-      "  ${T[m_motd_preview]}" \
-      "  ${T[m_ssh]}" \
+      "  ─── ${T[sec_users]} ───" \
+      "  ${T[m_sudo_user]}" \
       "  ─── ${T[sec_security]} ───" \
+      "  ${T[m_ssh]}" \
       "  ${T[m_ufw]}" \
       "  ${T[m_fail2ban]}" \
       "  ${T[m_hardening]}" \
-      "  ─── ${T[sec_panels]} ───" \
+      "  ─── ${T[sec_appearance]} ───" \
+      "  ${T[m_motd_install]}" \
+      "  ${T[m_motd_restore]}" \
+      "  ${T[m_motd_preview]}" \
+      "  ─── ${T[sec_services]} ───" \
       "  ${T[m_docker]}" \
       "  ${T[m_1panel]}" \
-      "  ─── ${T[sec_extras]} ───" \
+      "  ─── ${T[sec_utils]} ───" \
       "  ${T[m_aliases]}" \
       "  ${T[m_apt_clean]}" \
       "  ${T[m_cron]}" \
-      "  ${T[m_log]}" \
-      "  ─── ${T[sec_scripts]} ───" \
       "  ${T[m_scripts]}" \
+      "  ${T[m_log]}" \
       "  ${T[exit]}") || continue
 
     # Strip leading "  "

@@ -18,17 +18,29 @@ ensure_gum() {
 
 # ── Display helpers ───────────────────────────────────────────────────────────
 gum_header() {
+  local title="$1"
+  local host; host="$(hostname -s 2>/dev/null || echo server)"
   echo
   gum style \
     --foreground 45 --bold \
-    --border rounded --border-foreground 45 \
-    --padding "0 2" \
-    "$1"
+    --border double --border-foreground 45 \
+    --padding "1 4" \
+    --align center \
+    --width 60 \
+    "${title}"$'\n'"$(gum style --foreground 240 "root@${host}")"
   echo
 }
 
 gum_section() {
-  gum style --foreground 81 --bold "  ── $1 ──"
+  gum style --foreground 214 --bold "  ▸ $1"
+}
+
+gum_status_bar() {
+  local ufw fail2ban
+  ufw="$(_svc_badge_color ufw)"
+  fail2ban="$(_svc_badge_color fail2ban)"
+  printf "  \e[38;5;240m%s\e[0m\n" "${T[subtitle]}"
+  printf "  UFW: %s    Fail2ban: %s\n\n" "$ufw" "$fail2ban"
 }
 
 # ── Interaction helpers ───────────────────────────────────────────────────────
