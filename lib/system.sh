@@ -152,11 +152,9 @@ setup_swap() {
       *M) mb=${size%[Mm]} ;;
       *)  die "${T[err_invalid_size]}" ;;
     esac
-    local _dd_rc=0
-    gum_spin "Creating swapfile via dd (${size})..." \
-      dd if=/dev/zero of=/swapfile bs=1M count="$mb" || _dd_rc=$?
-    if (( _dd_rc != 0 )); then
-      log_action "setup_swap: dd FAILED (exit ${_dd_rc}) size=${size} mb=${mb}"
+    say "${T[swap_dd_creating]}"
+    if ! dd if=/dev/zero of=/swapfile bs=1M count="$mb" status=progress; then
+      log_action "setup_swap: dd FAILED size=${size} mb=${mb}"
       rm -f /swapfile 2>/dev/null || true
       die "${T[swap_create_fail]}"
     fi
