@@ -86,8 +86,12 @@ ufw_delete_rule() {
   num=$(gum_input "${T[ufw_delete_prompt]}") || return 0
   [[ "$num" =~ ^[0-9]+$ ]] || { warn "${T[invalid_choice]}"; return 0; }
   gum_confirm "$(_t ufw_delete_confirm "$num")" || return 0
-  yes | ufw delete "$num"
-  log_action "ufw delete rule ${num}"
+  if ufw --force delete "$num" 2>/dev/null; then
+    log_action "ufw delete rule ${num}"
+    say "${T[ufw_delete_done]}"
+  else
+    warn "${T[ufw_delete_fail]}"
+  fi
 }
 
 ufw_enable() {

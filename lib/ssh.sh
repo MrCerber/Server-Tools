@@ -16,12 +16,44 @@ ssh_status() {
 }
 
 ssh_disable_password_auth() {
+  local _keys=0
+  if [[ -f /root/.ssh/authorized_keys ]]; then
+    _keys=$(grep -cE "^(ssh-|ecdsa-|sk-)" /root/.ssh/authorized_keys 2>/dev/null || true)
+  fi
+  if (( _keys == 0 )); then
+    warn "${T[ssh_no_keys_abort]}"
+    echo
+    say "${T[ssh_add_key_hint]}"
+    return 0
+  fi
+
   warn "${T[ssh_disable_pass_warn]}"
+  say "$(_t ssh_keys_found "$_keys")"
   gum_confirm "${T[ssh_disable_pass_confirm]}" || return 0
   _sshd_set_option "PasswordAuthentication" "no"
   _sshd_validate_and_reload
   log_action "ssh_disable_password_auth"
   say "${T[ssh_disable_pass_done]}"
+}
+
+ssh_add_key() {
+  local pubkey
+  pubkey=$(gum_input "${T[ssh_add_key_prompt]}") || return 0
+  [[ -n "$pubkey" ]] || { warn "${T[cannot_be_empty]}"; return 0; }
+  if ! _validate_ssh_pubkey "$pubkey"; then
+    warn "${T[user_ssh_key_invalid]}"; return 0
+  fi
+  local _auth="/root/.ssh/authorized_keys"
+  mkdir -p /root/.ssh
+  chmod 700 /root/.ssh
+  if grep -qF "$pubkey" "$_auth" 2>/dev/null; then
+    say "${T[ssh_key_already_exists]}"
+    return 0
+  fi
+  printf "%s\n" "$pubkey" >> "$_auth"
+  chmod 600 "$_auth"
+  log_action "ssh_add_key: added key to ${_auth}"
+  say "${T[ssh_add_key_done]}"
 }
 
 ssh_restrict_root_login() {
@@ -60,16 +92,18 @@ ssh_menu() {
     local choice
     choice=$(gum choose --cursor="▶ " \
       "${T[ssh_m_status]}" \
+      "${T[ssh_m_add_key]}" \
       "${T[ssh_m_disable_pass]}" \
       "${T[ssh_m_restrict_root]}" \
       "${T[ssh_m_change_port]}" \
       "${T[back]}") || break
 
     case "$choice" in
-      "${T[ssh_m_status]}")        ssh_status; gum_pause ;;
-      "${T[ssh_m_disable_pass]}")  ssh_disable_password_auth; gum_pause ;;
-      "${T[ssh_m_restrict_root]}") ssh_restrict_root_login; gum_pause ;;
-      "${T[ssh_m_change_port]}")   ssh_change_port; gum_pause ;;
+      "${T[ssh_m_status]}")        ssh_status;                done_pause ;;
+      "${T[ssh_m_add_key]}")       ssh_add_key;               done_pause ;;
+      "${T[ssh_m_disable_pass]}")  ssh_disable_password_auth; done_pause ;;
+      "${T[ssh_m_restrict_root]}") ssh_restrict_root_login;   done_pause ;;
+      "${T[ssh_m_change_port]}")   ssh_change_port;           done_pause ;;
       "${T[back]}")                break ;;
     esac
   done
