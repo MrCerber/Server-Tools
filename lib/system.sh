@@ -7,6 +7,7 @@ apt_update_upgrade() {
   gum_spin "${T[sys_updating]}" apt-get update -y
   DEBIAN_FRONTEND=noninteractive gum_spin "${T[sys_upgrading]}" \
     apt-get upgrade -y
+  say "${T[sys_upgrade_done]}"
 }
 
 install_base_packages() {
@@ -26,6 +27,7 @@ install_base_packages() {
       unattended-upgrades \
       apt-listchanges \
       openssh-server
+  say "${T[sys_packages_done]}"
 }
 
 cleanup_apt() {
@@ -142,6 +144,7 @@ setup_swap() {
   log_action "setup_swap ${size}"
 
   if ! fallocate -l "$size" /swapfile 2>/dev/null; then
+    log_action "setup_swap: fallocate failed, trying dd fallback"
     warn "${T[swap_fallocate_fail]}"
     local mb
     case "${size^^}" in
@@ -149,7 +152,14 @@ setup_swap() {
       *M) mb=${size%[Mm]} ;;
       *)  die "${T[err_invalid_size]}" ;;
     esac
-    gum_spin "Creating swapfile via dd..." dd if=/dev/zero of=/swapfile bs=1M count="$mb"
+    local _dd_rc=0
+    gum_spin "Creating swapfile via dd (${size})..." \
+      dd if=/dev/zero of=/swapfile bs=1M count="$mb" || _dd_rc=$?
+    if (( _dd_rc != 0 )); then
+      log_action "setup_swap: dd FAILED (exit ${_dd_rc}) size=${size} mb=${mb}"
+      rm -f /swapfile 2>/dev/null || true
+      die "${T[swap_create_fail]}"
+    fi
   fi
 
   chmod 600 /swapfile

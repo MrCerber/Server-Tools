@@ -56,9 +56,26 @@ gum_pause() {
   gum input --placeholder "${T[press_enter]}" > /dev/null 2>&1 || true
 }
 
+done_pause() {
+  echo
+  gum style \
+    --foreground 82 --bold \
+    --border rounded --border-foreground 238 \
+    --padding "0 2" \
+    "  ✓  ${T[done]}"
+  echo
+  gum input --placeholder "  ${T[press_enter]}" > /dev/null 2>&1 || true
+}
+
 gum_spin() {
   local title="$1"; shift
-  gum spin --title "$title" -- "$@"
+  log_action "CMD: $*"
+  local _rc=0
+  gum spin --title "$title" -- "$@" || _rc=$?
+  if [[ $_rc -ne 0 ]]; then
+    log_action "FAILED (exit ${_rc}): $*"
+  fi
+  return $_rc
 }
 
 gum_input() {

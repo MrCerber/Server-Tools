@@ -138,27 +138,27 @@ main_menu() {
       [[ -z "$_action" || "$_action" == "back" ]] && break
 
       case "$_action" in
-        full_setup)   full_base_setup;           gum_pause ;;
-        alias)        create_script_alias;        gum_pause ;;
-        update)       apt_update_upgrade;         gum_pause ;;
-        packages)     install_base_packages;      gum_pause ;;
-        autoupdates)  enable_auto_updates;        gum_pause ;;
-        swap)         setup_swap;                 gum_pause ;;
-        sudo_user)    create_sudo_user;           gum_pause ;;
+        full_setup)   full_base_setup;            done_pause ;;
+        alias)        create_script_alias;         done_pause ;;
+        update)       apt_update_upgrade;          done_pause ;;
+        packages)     install_base_packages;       done_pause ;;
+        autoupdates)  enable_auto_updates;         done_pause ;;
+        swap)         setup_swap;                  done_pause ;;
+        sudo_user)    create_sudo_user;            done_pause ;;
         ssh)          ssh_menu ;;
         ufw)          ufw_menu ;;
         fail2ban)     fail2ban_menu ;;
-        hardening)    apply_sysctl_hardening;     gum_pause ;;
-        motd_install) install_custom_motd;        gum_pause ;;
-        motd_restore) restore_default_motd;       gum_pause ;;
-        motd_preview) preview_motd;               gum_pause ;;
-        docker)       install_docker;             gum_pause ;;
-        1panel)       install_1panel;             gum_pause ;;
-        aliases)      install_aliases;            gum_pause ;;
-        apt_clean)    cleanup_apt;                gum_pause ;;
-        cron)         setup_auto_reboot_cron;     gum_pause ;;
+        hardening)    apply_sysctl_hardening;      done_pause ;;
+        motd_install) install_custom_motd;         done_pause ;;
+        motd_restore) restore_default_motd;        done_pause ;;
+        motd_preview) preview_motd;                gum_pause ;;
+        docker)       install_docker;              done_pause ;;
+        1panel)       install_1panel;              done_pause ;;
+        aliases)      install_aliases;             done_pause ;;
+        apt_clean)    cleanup_apt;                 done_pause ;;
+        cron)         setup_auto_reboot_cron;      done_pause ;;
         scripts)      scripts_menu ;;
-        log)          show_log;                   gum_pause ;;
+        log)          show_log;                    gum_pause ;;
       esac
     done
   done
